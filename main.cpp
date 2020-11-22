@@ -1,8 +1,8 @@
 #include "Lexer.h"
 
 int main() {
-  std::string str{"  -123.45e-2  "};
-  str = " + ";
+  std::string str{"sin(2.2,1.3)"};
+//   str = " + ";
 //   str = " 5e-2 / 1e3 ";
   Lexer lexer(str);
   int token = lexer.getToken();

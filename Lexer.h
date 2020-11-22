@@ -11,9 +11,12 @@ public:
   enum Token {
     tok_eof = -1,
     // primary
+    tok_leftparenthesis = -2,
+    tok_rightparenthesis = -3,
     tok_identifier = -4,
     tok_number = -5,
     tok_operator = -6,
+    tok_comma = -7,
   };
   Lexer(const std::string& input): mInputStr(input), mIdentifierStr(), mNumVal(0), mLastChar(' ') {}
   int getToken();
@@ -23,6 +26,9 @@ private:
   std::string mInputStr;
   std::string mIdentifierStr;
   std::string mOperatorStr;
+  std::string mLeftParenthesis;
+  std::string mRightParenthesis;
+  std::string mComma;
   double mNumVal;
   char mLastChar;
 };
@@ -30,18 +36,23 @@ private:
 int Lexer::getToken() {
   std::istringstream iss(mInputStr);
   int t = 256;
-  while (!iss.eof()) {
+  do {
     t = getToken(iss);
     printState(t);
-  }
-//   std::cout << "EOF" << std::endl;
+  } while (t != Token::tok_eof);
   return t;
 }
 
 int Lexer::getToken(std::istringstream& iss) {
   mIdentifierStr.clear();
   mOperatorStr.clear();
-//   std::cout << "getToken: input string " << iss.str() << std::endl;
+  mLeftParenthesis.clear();
+  mRightParenthesis.clear();
+  mComma.clear();
+  mNumVal = 0;
+  if (iss.eof()) {
+    return Lexer::Token::tok_eof;
+  }
   // Skip any whitespace
   while (std::isspace(mLastChar)) {
     if (iss.get(mLastChar)) {
@@ -49,9 +60,23 @@ int Lexer::getToken(std::istringstream& iss) {
         // Find the first non-whitespace character
         break;
     } else {
-      // Reach EOF and all are spaces
-      return Lexer::Token::tok_eof;
+      break;
     }
+  }
+  if (mLastChar == '(') {
+    mLeftParenthesis = mLastChar;
+    iss.get(mLastChar);
+    return Lexer::Token::tok_leftparenthesis;
+  }
+  if (mLastChar == ')') {
+    mRightParenthesis = mLastChar;
+    iss.get(mLastChar);
+    return Lexer::Token::tok_rightparenthesis;
+  }
+  if (mLastChar == ',') {
+    mComma = mLastChar;
+    iss.get(mLastChar);
+    return Lexer::Token::tok_comma;
   }
   // identifier: [a-zA-Z][a-zA-Z0-9]*
   if (std::isalpha(mLastChar)) {
@@ -70,7 +95,8 @@ int Lexer::getToken(std::istringstream& iss) {
     return Lexer::Token::tok_identifier;
   }
   // identifier: '*' and '/' operators
-  if (mLastChar == '*' || mLastChar == '/' || mLastChar == '-' || mLastChar == '+') {
+  if (mLastChar == '*' || mLastChar == '/' || mLastChar == '-' ||
+      mLastChar == '+' || mLastChar == '^' || mLastChar == '%') {
     mOperatorStr += mLastChar;
     iss.get(mLastChar);
     return Lexer::Token::tok_operator;
@@ -119,9 +145,12 @@ int Lexer::getToken(std::istringstream& iss) {
 void Lexer::printState(const int& t) const {
   switch (t) {
     case -1: std::cout << "EOF" << std::endl; break;
+    case -2: std::cout << "Left parenthesis: " << mLeftParenthesis << std::endl; break;
+    case -3: std::cout << "Right parenthesis: " << mRightParenthesis << std::endl; break;
     case -4: std::cout << "Identifier: " << mIdentifierStr << std::endl; break;
     case -5: std::cout << "Number: " << mNumVal << std::endl; break;
     case -6: std::cout << "Operator: " << mOperatorStr << std::endl; break;
-    default: std::cout << "Unspecified token: " << std::endl; break;
+    case -7: std::cout << "Comma: " << mComma << std::endl; break;
+    default: std::cout << "Unknown token: " << char(t) << std::endl; break;
   }
 }
