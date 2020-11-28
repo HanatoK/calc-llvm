@@ -1,3 +1,5 @@
+#ifndef ABSTRACTSYNTAXTREE_H
+#define ABSTRACTSYNTAXTREE_H
 #include <string>
 #include <memory>
 #include <utility>
@@ -60,3 +62,5 @@ public:
   CallExprAST(const string& Callee, vector<unique_ptr<ExprAST>> Args)
     : mCallee(Callee), mArguments(move(Args)) {}
 };
+
+#endif // ABSTRACTSYNTAXTREE_H

@@ -1,3 +1,6 @@
+#ifndef LEXER_H
+#define LEXER_H
+
 #include <string>
 #include <sstream>
 #include <cctype>
@@ -32,3 +35,5 @@ public:
 private:
   char mLastChar;
 };
+
+#endif // LEXER_H
