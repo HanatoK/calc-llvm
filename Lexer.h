@@ -3,88 +3,136 @@
 #include <cctype>
 #include <exception>
 #include <iostream>
+#include <tuple>
+#include <variant>
+
+using std::tuple;
+using std::variant;
+using std::istream;
+using std::string;
+using std::make_tuple;
+
+enum class Token {
+  Eof = -1,
+  LeftParenthesis = -2,
+  RightParenthesis = -3,
+  Identifier = -4,
+  Number = -5,
+  Operator = -6,
+  Comma = -7,
+  Unknown = -255,
+};
 
 class Lexer {
 public:
-  // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
-  // of these for known things.
-  enum Token {
-    tok_eof = -1,
-    // primary
-    tok_leftparenthesis = -2,
-    tok_rightparenthesis = -3,
-    tok_identifier = -4,
-    tok_number = -5,
-    tok_operator = -6,
-    tok_comma = -7,
-  };
-  Lexer(const std::string& input): mInputStr(input), mIdentifierStr(), mNumVal(0), mLastChar(' ') {}
-  int getToken();
-  int getToken(std::istringstream& iss);
-  void printState(const int& t) const;
+  Lexer();
+  void clearState();
+  tuple<Token, variant<string, double>> getToken(const string& str);
+  tuple<Token, variant<string, double>> getToken(istream& inputStream);
 private:
-  std::string mInputStr;
-  std::string mIdentifierStr;
-  std::string mOperatorStr;
-  std::string mLeftParenthesis;
-  std::string mRightParenthesis;
-  std::string mComma;
-  double mNumVal;
   char mLastChar;
 };
 
-int Lexer::getToken() {
-  std::istringstream iss(mInputStr);
-  int t = 256;
-  do {
-    t = getToken(iss);
-    printState(t);
-  } while (t != Token::tok_eof);
-  return t;
+Lexer::Lexer(): mLastChar(' ') {}
+
+void Lexer::clearState() {
+  mLastChar = ' ';
 }
 
-int Lexer::getToken(std::istringstream& iss) {
-  mIdentifierStr.clear();
-  mOperatorStr.clear();
-  mLeftParenthesis.clear();
-  mRightParenthesis.clear();
-  mComma.clear();
-  mNumVal = 0;
-  if (iss.eof()) {
-    return Lexer::Token::tok_eof;
-  }
-  // Skip any whitespace
-  while (std::isspace(mLastChar)) {
-    if (iss.get(mLastChar)) {
-      if (!std::isspace(mLastChar))
-        // Find the first non-whitespace character
+tuple<Token, variant<string, double>> Lexer::getToken(const string& str) {
+  clearState();
+  std::istringstream iss(str);
+  auto result = getToken(iss);
+  do {
+    switch (std::get<0>(result)) {
+      case Token::Eof: {
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
         break;
+      }
+      case Token::LeftParenthesis: {
+        std::cout << "Left parenthesis: ";
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
+        break;
+      }
+      case Token::RightParenthesis: {
+        std::cout << "Right parenthesis: ";
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
+        break;
+      }
+      case Token::Identifier: {
+        std::cout << "Identifier: ";
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
+        break;
+      }
+      case Token::Number: {
+        std::cout << "Number: ";
+        std::cout << std::get<double>(std::get<1>(result)) << std::endl;
+        break;
+      }
+      case Token::Operator: {
+        std::cout << "Operator: ";
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
+        break;
+      }
+      case Token::Comma: {
+        std::cout << "Comma:";
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
+        break;
+      }
+      default: {
+        std::cout << "Unknown token: ";
+        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
+        break;
+      }
+    }
+    result = getToken(iss);
+  } while (std::get<0>(result) != Token::Eof);
+  return result;
+}
+
+tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
+  if (inputStream.eof()) {
+    return make_tuple(Token::Eof, string{"EOF"});
+  }
+  // skip any whitespace
+  while (std::isspace(mLastChar)) {
+    if (inputStream.get(mLastChar)) {
+      if (!std::isspace(mLastChar)) {
+        // if we meet the first non-whitespace character, break the loop
+        break;
+      }
     } else {
+      // EOF
+      return make_tuple(Token::Eof, string{mLastChar});
       break;
     }
   }
   if (mLastChar == '(') {
-    mLeftParenthesis = mLastChar;
-    iss.get(mLastChar);
-    return Lexer::Token::tok_leftparenthesis;
+    const Token t = Token::LeftParenthesis;
+    const string result{mLastChar};
+    inputStream.get(mLastChar);
+    return make_tuple(t, result);
   }
   if (mLastChar == ')') {
-    mRightParenthesis = mLastChar;
-    iss.get(mLastChar);
-    return Lexer::Token::tok_rightparenthesis;
+    const Token t = Token::RightParenthesis;
+    const string result{mLastChar};
+    inputStream.get(mLastChar);
+    return make_tuple(t, result);
   }
   if (mLastChar == ',') {
-    mComma = mLastChar;
-    iss.get(mLastChar);
-    return Lexer::Token::tok_comma;
+    const Token t = Token::Comma;
+    const string result{mLastChar};
+    inputStream.get(mLastChar);
+    return make_tuple(t, result);
   }
-  // identifier: [a-zA-Z][a-zA-Z0-9]*
+  // [a-zA-Z][a-zA-Z0-9]*
   if (std::isalpha(mLastChar)) {
-    mIdentifierStr += mLastChar;
+    const Token t = Token::Identifier;
+    string result{mLastChar};
     while (std::isalnum(mLastChar)) {
-      if (iss.get(mLastChar)) {
+      if (inputStream.get(mLastChar)) {
         if (std::isalnum(mLastChar)) {
-          mIdentifierStr += mLastChar;
+          result += mLastChar;
         } else {
           break;
         }
@@ -92,28 +140,32 @@ int Lexer::getToken(std::istringstream& iss) {
         break;
       }
     }
-    return Lexer::Token::tok_identifier;
+    return make_tuple(t, result);
   }
-  // identifier: '*' and '/' operators
+  // operators
   if (mLastChar == '*' || mLastChar == '/' || mLastChar == '-' ||
       mLastChar == '+' || mLastChar == '^' || mLastChar == '%') {
-    mOperatorStr += mLastChar;
-    iss.get(mLastChar);
-    return Lexer::Token::tok_operator;
+    const Token t = Token::Operator;
+    const string result{mLastChar};
+    inputStream.get(mLastChar);
+    return make_tuple(t, result);
   }
-  // identifier: numbers, potential '+' and '-' operators
+  // numbers
   if (std::isdigit(mLastChar) || mLastChar == '.') {
-    std::string NumStr;
-    NumStr += mLastChar;
+    const Token t = Token::Number;
+    string NumStr{mLastChar};
     int num_e = 0;
     int num_dot = (mLastChar == '.') ? 1 : 0;
     int num_digit = (std::isdigit(mLastChar)) ? 1 : 0;
-    while (iss.get(mLastChar)) {
+    while (inputStream.get(mLastChar)) {
       if (mLastChar == 'e' || mLastChar == 'E') {
         // check if this is an 'e'
         if (num_digit >= 1) {
+          // any 'e' must appear after at least a number
           NumStr += mLastChar;
           ++num_e;
+        } else {
+          // TODO: what will happen here?
         }
       } else if (std::isdigit(mLastChar)) {
         ++num_digit;
@@ -122,7 +174,6 @@ int Lexer::getToken(std::istringstream& iss) {
         NumStr += mLastChar;
         ++num_dot;
       } else {
-        // so the previous char should be an operator
         if (num_e > 0 && (mLastChar == '+' || mLastChar == '-')) {
           NumStr += mLastChar;
         } else {
@@ -131,26 +182,12 @@ int Lexer::getToken(std::istringstream& iss) {
       }
     }
     try {
-      mNumVal = std::stod(NumStr);
-      return Lexer::Token::tok_number;
-    }
-    catch (std::exception& e) {
+      const double number = std::stod(NumStr);
+      return make_tuple(t, number);
+    } catch (std::exception& e) {
       std::cerr << e.what() << '\n';
-      return 256;
+      return make_tuple(t, 0.0);
     }
   }
-  return int(mLastChar);
-}
-
-void Lexer::printState(const int& t) const {
-  switch (t) {
-    case -1: std::cout << "EOF" << std::endl; break;
-    case -2: std::cout << "Left parenthesis: " << mLeftParenthesis << std::endl; break;
-    case -3: std::cout << "Right parenthesis: " << mRightParenthesis << std::endl; break;
-    case -4: std::cout << "Identifier: " << mIdentifierStr << std::endl; break;
-    case -5: std::cout << "Number: " << mNumVal << std::endl; break;
-    case -6: std::cout << "Operator: " << mOperatorStr << std::endl; break;
-    case -7: std::cout << "Comma: " << mComma << std::endl; break;
-    default: std::cout << "Unknown token: " << char(t) << std::endl; break;
-  }
+  return make_tuple(Token::Unknown, string{mLastChar});
 }
