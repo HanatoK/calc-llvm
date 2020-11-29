@@ -1,11 +1,10 @@
+#include "AbstractSyntaxTree.h"
 #include "Lexer.h"
+#include "Parser.h"
 
 int main() {
-  std::string str{"  sin(2.2,1.3) + (x + 1.5) *2.6  "};
-//   str = " + ";
-//   str = " 5e-2 / 1e3 ";
-  Lexer lexer;
-  lexer.getToken(str);
-//   lexer.printState(token);
+  std::string s{"5+2*8"};
+  Parser p(s);
+  p.ParseTopLevelExpr();
   return 0;
 }

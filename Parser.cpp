@@ -7,6 +7,8 @@ using std::move;
 using std::unique_ptr;
 using std::string;
 
+#define DEBUG_PARSER
+
 Parser::Parser() {
   SetupPrecedence();
 }
@@ -30,7 +32,7 @@ void Parser::SetupPrecedence() {
 
 int Parser::GetTokPrecedence(const string& Op) const {
   try {
-    const int TokPrec = mBinopPrecedence.at(op);
+    const int TokPrec = mBinopPrecedence.at(Op);
     return TokPrec;
   } catch (std::exception& e) {
     std::cerr << e.what() << '\n';
@@ -50,13 +52,14 @@ void Parser::PrintCurrentToken() const {
   const auto V = get<1>(mCurrentToken);
   cout << "Current token: " << static_cast<int>(T) << " ";
   switch (T) {
-    case Eof: cout << "Eof: " << get<string>(V); break;
-    case LeftParenthesis: cout << "LeftParenthesis: " << get<string>(V); break;
-    case RightParenthesis: cout << "RightParenthesis: " << get<string>(V); break;
-    case Identifier: cout << "Identifier: " << get<string>(V); break;
-    case Number: cout << "Number: " << get<double>(V); break;
-    case Operator: cout << "Operator: " << get<string>(V); break;
-    case Comma: cout << "Comma: " << get<string>(V); break;
+    case Token::Eof: cout << "Eof: " << get<string>(V); break;
+    case Token::LeftParenthesis: cout << "LeftParenthesis: " << get<string>(V); break;
+    case Token::RightParenthesis: cout << "RightParenthesis: " << get<string>(V); break;
+    case Token::Identifier: cout << "Identifier: " << get<string>(V); break;
+    case Token::Number: cout << "Number: " << get<double>(V); break;
+    case Token::Operator: cout << "Operator: " << get<string>(V); break;
+    case Token::Comma: cout << "Comma: " << get<string>(V); break;
+    case Token::Unknown: cout << "Unknown: " << get<string>(V); break;
   }
   cout << endl;
 }
@@ -71,7 +74,7 @@ unique_ptr<ExprAST> Parser::ParseNumberExpr() {
   std::cout << "unique_ptr<ExprAST> Parser::ParseNumberExpr()\n";
   PrintCurrentToken();
 #endif
-  auto Result = make_unique<NumberExprAst>(NumVal);
+  auto Result = make_unique<NumberExprAst>(std::get<double>(std::get<1>(mCurrentToken)));
   getNextToken();
   return move(Result);
 }
@@ -100,22 +103,22 @@ unique_ptr<ExprAST> Parser::ParseIdentifierExpr() {
 #endif
   const string IdName = get<string>(get<1>(mCurrentToken));
   getNextToken(); // eat identifier
-  if (get<1>(mCurrentToken) != Token::LeftParenthesis) {
+  if (get<0>(mCurrentToken) != Token::LeftParenthesis) {
     // Simple variable ref.
-    return std::make_unique<VariableExprAST>(IdName);
+    return make_unique<VariableExprAST>(IdName);
   }
   // '(' appears after an identifier, so this is a function call
   getNextToken();
   vector<unique_ptr<ExprAST>> Args;
-  if (get<1>(mCurrentToken) != Token::RightParenthesis) {
+  if (get<0>(mCurrentToken) != Token::RightParenthesis) {
     while (true) {
       if (auto Arg = ParseExpression())
         Args.push_back(move(Arg));
       else
         return nullptr;
-      if (get<1>(mCurrentToken) == Token::RightParenthesis)
+      if (get<0>(mCurrentToken) == Token::RightParenthesis)
         break;
-      if (get<1>(mCurrentToken) != Token::Comma)
+      if (get<0>(mCurrentToken) != Token::Comma)
         return LogError("Expected ')' or ',' in argument list");
       getNextToken();
     }
@@ -173,11 +176,12 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
       if (!RHS)
         return nullptr;
     }
-    LHS = make_unique<BinaryExprAST>(BinOpToken, move(LHS), move(RHS));
+    const char BinOp = std::get<string>(std::get<1>(BinOpToken))[0];
+    LHS = make_unique<BinaryExprAST>(BinOp, move(LHS), move(RHS));
   }
 }
 
-unique_ptr<FunctionAST> ParseTopLevelExpr() {
+unique_ptr<FunctionAST> Parser::ParseTopLevelExpr() {
   if (auto E = ParseExpression()) {
     // Make an anonymous proto.
     auto Proto = make_unique<PrototypeAST>("", vector<string>());
@@ -185,3 +189,17 @@ unique_ptr<FunctionAST> ParseTopLevelExpr() {
   }
   return nullptr;
 }
+
+void Parser::HandleTopLevelExpression() {
+  if (ParseTopLevelExpr()) {
+    std::cerr << "Parsed a top-level expr\n";
+  } else {
+    getNextToken();
+  }
+}
+
+// void Parser::MainLoop() {
+//   while (true) {
+//     
+//   }
+// }

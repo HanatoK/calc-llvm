@@ -18,6 +18,7 @@ using std::unique_ptr;
 using std::variant;
 using std::tuple;
 using std::istringstream;
+using std::make_unique;
 
 class Parser {
 public:
@@ -34,6 +35,8 @@ public:
   unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, unique_ptr<ExprAST> LHS);
   unique_ptr<ExprAST> ParseExpression();
   unique_ptr<FunctionAST> ParseTopLevelExpr();
+  void HandleTopLevelExpression();
+//   void MainLoop();
 private:
   void SetupPrecedence();
   void SetupInput(const string& Str);

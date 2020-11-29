@@ -55,7 +55,7 @@ public:
 // };
 
 /// CallExprAST - Expression class for function calls.
-class CallExprAST: public {
+class CallExprAST: public ExprAST {
 private:
   string mCallee;
   vector<unique_ptr<ExprAST>> mArguments;
@@ -67,23 +67,23 @@ public:
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes).
-class PrototypeAST {
+class PrototypeAST: public ExprAST {
 private:
   string mName;
   vector<string> mArguments;
 public:
   PrototypeAST(const string& Name, vector<string> Args)
-    : mName(Name), Args(move(Args)) {}
-}
+    : mName(Name), mArguments(move(Args)) {}
+};
 
 /// FunctionAST - This class represents a function definition itself.
-class FunctionAST {
+class FunctionAST: public ExprAST {
 private:
   unique_ptr<PrototypeAST> mPrototype;
   unique_ptr<ExprAST> mBody;
 public:
   FunctionAST(unique_ptr<PrototypeAST> Proto, unique_ptr<ExprAST> Body)
     : mPrototype(move(Proto)), mBody(move(Body)) {}
-}
+};
 
 #endif // ABSTRACTSYNTAXTREE_H
