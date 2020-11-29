@@ -64,4 +64,26 @@ public:
     : mCallee(Callee), mArguments(move(Args)) {}
 };
 
+/// PrototypeAST - This class represents the "prototype" for a function,
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes).
+class PrototypeAST {
+private:
+  string mName;
+  vector<string> mArguments;
+public:
+  PrototypeAST(const string& Name, vector<string> Args)
+    : mName(Name), Args(move(Args)) {}
+}
+
+/// FunctionAST - This class represents a function definition itself.
+class FunctionAST {
+private:
+  unique_ptr<PrototypeAST> mPrototype;
+  unique_ptr<ExprAST> mBody;
+public:
+  FunctionAST(unique_ptr<PrototypeAST> Proto, unique_ptr<ExprAST> Body)
+    : mPrototype(move(Proto)), mBody(move(Body)) {}
+}
+
 #endif // ABSTRACTSYNTAXTREE_H
