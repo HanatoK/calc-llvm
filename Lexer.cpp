@@ -6,7 +6,7 @@ void Lexer::clearState() {
   mLastChar = ' ';
 }
 
-tuple<Token, variant<string, double>> Lexer::getToken(const string& str) {
+tuple<Token, variant<string, double>> Lexer::getAllToken(const string& str) {
   clearState();
   std::istringstream iss(str);
   auto result = getToken(iss);
@@ -111,7 +111,7 @@ tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
   }
   // operators
   if (mLastChar == '*' || mLastChar == '/' || mLastChar == '-' ||
-      mLastChar == '+' || mLastChar == '^' || mLastChar == '%') {
+      mLastChar == '+' || mLastChar == '^') {
     const Token t = Token::Operator;
     const string result{mLastChar};
     inputStream.get(mLastChar);

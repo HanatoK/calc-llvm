@@ -44,14 +44,15 @@ public:
 };
 
 /// UnaryExprAST - Expression class for a unary operator.
-class UnaryExprAST: public ExprAST {
-private:
-  char mOperator;
-  unique_ptr<ExprAST> mRHS;
-public:
-  UnaryExprAST(char Op, unique_ptr<ExprAST> RHS)
-    : mOperator(Op), mRHS(move(RHS)) {}
-};
+// Do I need this??
+// class UnaryExprAST: public ExprAST {
+// private:
+//   char mOperator;
+//   unique_ptr<ExprAST> mRHS;
+// public:
+//   UnaryExprAST(char Op, unique_ptr<ExprAST> RHS)
+//     : mOperator(Op), mRHS(move(RHS)) {}
+// };
 
 /// CallExprAST - Expression class for function calls.
 class CallExprAST: public {

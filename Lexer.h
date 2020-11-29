@@ -30,7 +30,7 @@ class Lexer {
 public:
   Lexer();
   void clearState();
-  tuple<Token, variant<string, double>> getToken(const string& str);
+  tuple<Token, variant<string, double>> getAllToken(const string& str);
   tuple<Token, variant<string, double>> getToken(istream& inputStream);
 private:
   char mLastChar;
