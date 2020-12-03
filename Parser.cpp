@@ -151,6 +151,17 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
     case Token::Identifier: return ParseIdentifierExpr();
     case Token::Number: return ParseNumberExpr();
     case Token::LeftParenthesis: return ParseParenExpr();
+    case Token::Operator: {
+      // Parse a signed number
+      const char Op = std::get<string>(std::get<1>(mCurrentToken))[0];
+      if ((Op == '-') || (Op == '+')) {
+        auto ZeroExpr = make_unique<NumberExprAst>(0.0);
+        return ParseBinOpRHS(0, std::move(ZeroExpr));
+      } else {
+        const string ErrorMsg = string("Expect a number before ") + Op;
+        return LogError(ErrorMsg);
+      }
+    }
   }
 #ifdef DEBUG_PARSER
   std::cout << "End of ParsePrimary()\n";
