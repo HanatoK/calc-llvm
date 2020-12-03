@@ -35,6 +35,8 @@ int Parser::GetTokPrecedence(const string& Op) const {
     const int TokPrec = mBinopPrecedence.at(Op);
     return TokPrec;
   } catch (std::exception& e) {
+    std::cerr << "Error in Parser::GetTokPrecedence(const string& Op)\n";
+    std::cerr << "Operator string: " << Op << std::endl;
     std::cerr << e.what() << '\n';
     return -1;
   }
@@ -198,8 +200,14 @@ void Parser::HandleTopLevelExpression() {
   }
 }
 
-// void Parser::MainLoop() {
-//   while (true) {
-//     
-//   }
-// }
+void Parser::MainLoop() {
+  getNextToken();
+  while (true) {
+    switch (std::get<0>(mCurrentToken)) {
+      case Token::Eof: return;
+      default:
+        HandleTopLevelExpression();
+        break;
+    }
+  }
+}

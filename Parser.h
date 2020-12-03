@@ -36,7 +36,7 @@ public:
   unique_ptr<ExprAST> ParseExpression();
   unique_ptr<FunctionAST> ParseTopLevelExpr();
   void HandleTopLevelExpression();
-//   void MainLoop();
+  void MainLoop();
 private:
   void SetupPrecedence();
   void SetupInput(const string& Str);
