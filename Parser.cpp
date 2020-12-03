@@ -31,13 +31,19 @@ void Parser::SetupPrecedence() {
 }
 
 int Parser::GetTokPrecedence(const string& Op) const {
-  try {
-    const int TokPrec = mBinopPrecedence.at(Op);
-    return TokPrec;
-  } catch (std::exception& e) {
-    std::cerr << "Error in Parser::GetTokPrecedence(const string& Op)\n";
-    std::cerr << "Operator string: " << Op << std::endl;
-    std::cerr << e.what() << '\n';
+//   try {
+//     const int TokPrec = mBinopPrecedence.at(Op);
+//     return TokPrec;
+//   } catch (std::exception& e) {
+//     std::cerr << "Error in Parser::GetTokPrecedence(const string& Op)\n";
+//     std::cerr << "Operator string: " << Op << std::endl;
+//     std::cerr << e.what() << '\n';
+//     return -1;
+//   }
+  auto FindRes = mBinopPrecedence.find(Op);
+  if (FindRes != mBinopPrecedence.end()) {
+    return FindRes->second;
+  } else {
     return -1;
   }
 }
@@ -88,11 +94,16 @@ unique_ptr<ExprAST> Parser::ParseParenExpr() {
 #endif
   getNextToken(); // eat (.
   auto V = ParseExpression();
-  if (!V)
+  if (!V) {
+    std::cout << "NULL HERE!\n";
     return nullptr;
+  }
   if (std::get<0>(mCurrentToken) != Token::RightParenthesis)
     return LogError("expected ')'");
   getNextToken(); // eat ).
+#ifdef DEBUG_PARSER
+  std::cout << "End of ParseParenExpr()\n";
+#endif
   return V;
 }
 
@@ -136,11 +147,14 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
   PrintCurrentToken();
 #endif
   switch (std::get<0>(mCurrentToken)) {
+    default: return LogError("unknown token when expecting an expression");
     case Token::Identifier: return ParseIdentifierExpr();
     case Token::Number: return ParseNumberExpr();
     case Token::LeftParenthesis: return ParseParenExpr();
-    default: return LogError("unknown token when expecting an expression");
   }
+#ifdef DEBUG_PARSER
+  std::cout << "End of ParsePrimary()\n";
+#endif
 }
 
 unique_ptr<ExprAST> Parser::ParseExpression() {
@@ -151,20 +165,26 @@ unique_ptr<ExprAST> Parser::ParseExpression() {
   auto LHS = ParsePrimary();
   if (!LHS)
     return nullptr;
+#ifdef DEBUG_PARSER
+  std::cout << "End of ParseExpression()\n";
+#endif
   return ParseBinOpRHS(0, move(LHS));
 }
 
 unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
                                           unique_ptr<ExprAST> LHS) {
 #ifdef DEBUG_PARSER
-  std::cout << "unique_ptr<ExprAST> Parser::ParseBinOpRHS()\n";
-  PrintCurrentToken();
+  std::cout << "unique_ptr<ExprAST> Parser::ParseBinOpRHS()" << " ExprPrec = " << ExprPrec << "\n";
 #endif
   using std::get;
-  string Op = get<string>(get<1>(mCurrentToken));
   // TODO: figure out what happens in the following code
   while (true) {
+    string Op = get<string>(get<1>(mCurrentToken));
     int TokPrec = GetTokPrecedence(Op);
+#ifdef DEBUG_PARSER
+    std::cout << "Current token in Parser::ParseBinOpRHS(): ";
+#endif
+    PrintCurrentToken();
     if (TokPrec < ExprPrec)
       return LHS;
     auto BinOpToken = mCurrentToken;
