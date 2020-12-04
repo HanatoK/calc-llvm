@@ -1,0 +1,2 @@
+#define VERSION_MAJOR @llvm-calculator_VERSION_MAJOR@
+#define VERSION_MINOR @llvm-calculator_VERSION_MINOR@

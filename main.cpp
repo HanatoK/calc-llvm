@@ -1,6 +1,7 @@
 #include "AbstractSyntaxTree.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "Version.h"
 
 int main() {
   std::string s{"(5+2)*8"};
