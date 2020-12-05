@@ -23,6 +23,9 @@ public:
     mParser(p), mContext(), mBuilder(mContext), mModule("calculator", mContext) {}
   void HandleTopLevelExpression();
   void MainLoop();
+  void traverseAST(const ExprAST* Node) const;
+  void traverseAST(const PrototypeAST* Node) const;
+  void traverseAST(const FunctionAST* Node) const;
 private:
   Parser mParser;
   LLVMContext mContext;
