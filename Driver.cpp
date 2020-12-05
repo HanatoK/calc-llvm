@@ -1,8 +1,12 @@
 #include "Driver.h"
 
 void Driver::HandleTopLevelExpression() {
-  if (mParser.ParseTopLevelExpr()) {
-    std::cerr << "Parsed a top-level expr\n";
+  if (auto FnAST = mParser.ParseTopLevelExpr()) {
+    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mNamedValues)) {
+      std::cerr << "Read a top-level expr:\n";
+      FnIR->print(llvm::errs());
+      std::cerr << std::endl;
+    }
   } else {
     mParser.getNextToken();
   }

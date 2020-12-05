@@ -5,7 +5,8 @@
 #include "Driver.h"
 
 int main() {
-  std::string s{"(5+2)*8"};
+  std::string s{"2*-3+2"};
+  std::cout << "Input string: " << s << std::endl;
   Parser p(s);
   Driver d(p);
   d.MainLoop();
