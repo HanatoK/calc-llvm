@@ -18,8 +18,18 @@ Parser::Parser(const string& Str) {
   SetupInput(Str);
 }
 
+Parser::Parser(const Parser& p) {
+  this->SetupPrecedence();
+  this->SetupInput(p.getInputString());
+}
+
 void Parser::SetupInput(const string& Str) {
+  mInputString = Str;
   mInputStream.str(Str);
+}
+
+string Parser::getInputString() const {
+  return mInputString;
 }
 
 void Parser::SetupPrecedence() {
@@ -50,6 +60,10 @@ int Parser::GetTokPrecedence(const string& Op) const {
 
 tuple<Token, variant<string, double>> Parser::getNextToken() {
   return mCurrentToken = mLexer.getToken(mInputStream);
+}
+
+tuple<Token, variant<string, double>> Parser::getCurrentToken() const {
+  return mCurrentToken;
 }
 
 void Parser::PrintCurrentToken() const {
@@ -216,24 +230,4 @@ unique_ptr<FunctionAST> Parser::ParseTopLevelExpr() {
     return make_unique<FunctionAST>(move(Proto), move(E));
   }
   return nullptr;
-}
-
-void Parser::HandleTopLevelExpression() {
-  if (ParseTopLevelExpr()) {
-    std::cerr << "Parsed a top-level expr\n";
-  } else {
-    getNextToken();
-  }
-}
-
-void Parser::MainLoop() {
-  getNextToken();
-  while (true) {
-    switch (std::get<0>(mCurrentToken)) {
-      case Token::Eof: return;
-      default:
-        HandleTopLevelExpression();
-        break;
-    }
-  }
 }

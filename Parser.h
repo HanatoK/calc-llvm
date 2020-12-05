@@ -24,8 +24,11 @@ class Parser {
 public:
   Parser();
   Parser(const string& Str);
+  Parser(const Parser& p);
+  string getInputString() const;
   int GetTokPrecedence(const string& Op) const;
   tuple<Token, variant<string, double>> getNextToken();
+  tuple<Token, variant<string, double>> getCurrentToken() const;
   void PrintCurrentToken() const;
   unique_ptr<ExprAST> ParseNumberExpr();
   unique_ptr<ExprAST> ParseParenExpr();
@@ -34,12 +37,11 @@ public:
   unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, unique_ptr<ExprAST> LHS);
   unique_ptr<ExprAST> ParseExpression();
   unique_ptr<FunctionAST> ParseTopLevelExpr();
-  void HandleTopLevelExpression();
-  void MainLoop();
 private:
   void SetupPrecedence();
   void SetupInput(const string& Str);
   map<string, int> mBinopPrecedence;
+  string mInputString;
   istringstream mInputStream;
   tuple<Token, variant<string, double>> mCurrentToken;
   Lexer mLexer;
