@@ -72,11 +72,6 @@ void Parser::PrintCurrentToken() const {
   cout << endl;
 }
 
-unique_ptr<ExprAST> Parser::LogError(const string& Str) {
-  std::cerr << Str << std::endl;
-  return nullptr;
-}
-
 unique_ptr<ExprAST> Parser::ParseNumberExpr() {
 #ifdef DEBUG_PARSER
   std::cout << "unique_ptr<ExprAST> Parser::ParseNumberExpr()\n";

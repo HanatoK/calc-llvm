@@ -27,7 +27,6 @@ public:
   int GetTokPrecedence(const string& Op) const;
   tuple<Token, variant<string, double>> getNextToken();
   void PrintCurrentToken() const;
-  unique_ptr<ExprAST> LogError(const string& Str);
   unique_ptr<ExprAST> ParseNumberExpr();
   unique_ptr<ExprAST> ParseParenExpr();
   unique_ptr<ExprAST> ParseIdentifierExpr();
