@@ -34,8 +34,9 @@ public:
   unique_ptr<ExprAST> ParseParenExpr();
   unique_ptr<ExprAST> ParseIdentifierExpr();
   unique_ptr<ExprAST> ParsePrimary();
-  unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, bool SignOp, unique_ptr<ExprAST> LHS);
+  unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, unique_ptr<ExprAST> LHS);
   unique_ptr<ExprAST> ParseExpression();
+  unique_ptr<ExprAST> ParseUnaryOpRHS();
   unique_ptr<FunctionAST> ParseTopLevelExpr();
 private:
   void SetupPrecedence();

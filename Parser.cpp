@@ -164,8 +164,7 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
       // Parse a signed number
       const char Op = std::get<string>(std::get<1>(mCurrentToken))[0];
       if ((Op == '-') || (Op == '+')) {
-        auto ZeroExpr = make_unique<NumberExprAst>(0.0);
-        return ParseBinOpRHS(0, true, std::move(ZeroExpr));
+        return ParseUnaryOpRHS();
       } else {
         const string ErrorMsg = string("Expect a number before ") + Op;
         return LogError(ErrorMsg);
@@ -188,11 +187,26 @@ unique_ptr<ExprAST> Parser::ParseExpression() {
 #ifdef DEBUG_PARSER
   std::cout << "End of ParseExpression()\n";
 #endif
-  return ParseBinOpRHS(0, false, move(LHS));
+  return ParseBinOpRHS(0, move(LHS));
+}
+
+unique_ptr<ExprAST> Parser::ParseUnaryOpRHS() {
+  // TODO: I do not totally solve the problem here!
+  // TODO: check the power operator ^
+#ifdef DEBUG_PARSER
+  std::cout << "unique_ptr<ExprAST> Parser::ParseUnaryOpRHS()\n";
+  PrintCurrentToken();
+#endif
+  string Op = std::get<string>(std::get<1>(mCurrentToken));
+  getNextToken();
+  auto LHS = make_unique<NumberExprAst>(0.0);
+  auto RHS = ParsePrimary();
+  if (!RHS)
+    return nullptr;
+  return make_unique<BinaryExprAST>(Op[0], move(LHS), move(RHS));
 }
 
 unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
-                                          bool SignOp,
                                           unique_ptr<ExprAST> LHS) {
 #ifdef DEBUG_PARSER
   std::cout << "unique_ptr<ExprAST> Parser::ParseBinOpRHS()" << " ExprPrec = " << ExprPrec << "\n";
@@ -202,13 +216,6 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
   while (true) {
     string Op = get<string>(get<1>(mCurrentToken));
     int TokPrec = GetTokPrecedence(Op);
-    if (SignOp) {
-#ifdef DEBUG_PARSER
-      SignOp = false;
-      std::cout << "SignOp!\n";
-      ++TokPrec;
-#endif
-    }
 #ifdef DEBUG_PARSER
     std::cout << "Current token in Parser::ParseBinOpRHS(): ";
     PrintCurrentToken();
@@ -228,7 +235,7 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
     std::cout << "Next precedence: NextPrec = " << NextPrec << "\n";
 #endif
     if (TokPrec < NextPrec) {
-      RHS = ParseBinOpRHS(TokPrec + 1, false, move(RHS));
+      RHS = ParseBinOpRHS(TokPrec + 1, move(RHS));
       if (!RHS)
         return nullptr;
     }
