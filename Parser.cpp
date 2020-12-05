@@ -33,25 +33,27 @@ string Parser::getInputString() const {
 }
 
 void Parser::SetupPrecedence() {
-  mBinopPrecedence["+"] = 100;
-  mBinopPrecedence["-"] = 100;
-  mBinopPrecedence["*"] = 200;
-  mBinopPrecedence["/"] = 200;
-  mBinopPrecedence["^"] = 300;
+  mBinaryOpPrecedence["+"] = 100;
+  mBinaryOpPrecedence["-"] = 100;
+  mBinaryOpPrecedence["*"] = 200;
+  mBinaryOpPrecedence["/"] = 200;
+  mBinaryOpPrecedence["^"] = 300;
+  mUnaryOpPrecedence["+"] = 250;
+  mUnaryOpPrecedence["-"] = 250;
 }
 
-int Parser::GetTokPrecedence(const string& Op) const {
-//   try {
-//     const int TokPrec = mBinopPrecedence.at(Op);
-//     return TokPrec;
-//   } catch (std::exception& e) {
-//     std::cerr << "Error in Parser::GetTokPrecedence(const string& Op)\n";
-//     std::cerr << "Operator string: " << Op << std::endl;
-//     std::cerr << e.what() << '\n';
-//     return -1;
-//   }
-  auto FindRes = mBinopPrecedence.find(Op);
-  if (FindRes != mBinopPrecedence.end()) {
+int Parser::GetBinaryPrecedence(const string& Op) const {
+  auto FindRes = mBinaryOpPrecedence.find(Op);
+  if (FindRes != mBinaryOpPrecedence.end()) {
+    return FindRes->second;
+  } else {
+    return -1;
+  }
+}
+
+int Parser::GetUnaryPrecedence(const string& Op) const {
+  auto FindRes = mUnaryOpPrecedence.find(Op);
+  if (FindRes != mUnaryOpPrecedence.end()) {
     return FindRes->second;
   } else {
     return -1;
@@ -164,7 +166,7 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
       // Parse a signed number
       const char Op = std::get<string>(std::get<1>(mCurrentToken))[0];
       if ((Op == '-') || (Op == '+')) {
-        return ParseUnaryOpRHS();
+        return ParseUnaryOpRHS(0);
       } else {
         const string ErrorMsg = string("Expect a number before ") + Op;
         return LogError(ErrorMsg);
@@ -190,20 +192,34 @@ unique_ptr<ExprAST> Parser::ParseExpression() {
   return ParseBinOpRHS(0, move(LHS));
 }
 
-unique_ptr<ExprAST> Parser::ParseUnaryOpRHS() {
+unique_ptr<ExprAST> Parser::ParseUnaryOpRHS(int ExprPrec) {
   // TODO: I do not totally solve the problem here!
   // TODO: check the power operator ^
 #ifdef DEBUG_PARSER
   std::cout << "unique_ptr<ExprAST> Parser::ParseUnaryOpRHS()\n";
   PrintCurrentToken();
 #endif
-  string Op = std::get<string>(std::get<1>(mCurrentToken));
+  using std::get;
+  unique_ptr<ExprAST> RHS;
+  const string Op = get<string>(get<1>(mCurrentToken));
+  const int TokPrec = GetUnaryPrecedence(Op);
+  if (TokPrec < ExprPrec)
+    return RHS;
   getNextToken();
   auto LHS = make_unique<NumberExprAst>(0.0);
-  auto RHS = ParsePrimary();
+  RHS = ParsePrimary();
   if (!RHS)
     return nullptr;
-  return make_unique<BinaryExprAST>(Op[0], move(LHS), move(RHS));
+  int NextPrec = GetBinaryPrecedence(get<string>(get<1>(mCurrentToken)));
+  if (TokPrec < NextPrec) {
+    std::cout << "Here!\n";
+    // take the current RHS as LHS, and parse the binary expression
+    RHS = ParseBinOpRHS(TokPrec + 1, move(RHS));
+    if (!RHS)
+      return nullptr;
+  }
+  RHS = make_unique<BinaryExprAST>(Op[0], move(LHS), move(RHS));
+  return RHS;
 }
 
 unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
@@ -214,8 +230,8 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
   using std::get;
   // TODO: figure out what happens in the following code
   while (true) {
-    string Op = get<string>(get<1>(mCurrentToken));
-    int TokPrec = GetTokPrecedence(Op);
+    const string Op = get<string>(get<1>(mCurrentToken));
+    int TokPrec = GetBinaryPrecedence(Op);
 #ifdef DEBUG_PARSER
     std::cout << "Current token in Parser::ParseBinOpRHS(): ";
     PrintCurrentToken();
@@ -228,7 +244,7 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
     auto RHS = ParsePrimary();
     if (!RHS)
       return nullptr;
-    int NextPrec = GetTokPrecedence(get<string>(get<1>(mCurrentToken)));
+    int NextPrec = GetBinaryPrecedence(get<string>(get<1>(mCurrentToken)));
 #ifdef DEBUG_PARSER
     std::cout << "Next token in Parser::ParseBinOpRHS(): ";
     PrintCurrentToken();
@@ -239,7 +255,7 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
       if (!RHS)
         return nullptr;
     }
-    const char BinOp = std::get<string>(std::get<1>(BinOpToken))[0];
+    const char BinOp = get<string>(get<1>(BinOpToken))[0];
     LHS = make_unique<BinaryExprAST>(BinOp, move(LHS), move(RHS));
   }
 }

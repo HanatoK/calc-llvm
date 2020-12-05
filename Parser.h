@@ -26,7 +26,8 @@ public:
   Parser(const string& Str);
   Parser(const Parser& p);
   string getInputString() const;
-  int GetTokPrecedence(const string& Op) const;
+  int GetBinaryPrecedence(const string& Op) const;
+  int GetUnaryPrecedence(const string& Op) const;
   tuple<Token, variant<string, double>> getNextToken();
   tuple<Token, variant<string, double>> getCurrentToken() const;
   void PrintCurrentToken() const;
@@ -36,12 +37,13 @@ public:
   unique_ptr<ExprAST> ParsePrimary();
   unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, unique_ptr<ExprAST> LHS);
   unique_ptr<ExprAST> ParseExpression();
-  unique_ptr<ExprAST> ParseUnaryOpRHS();
+  unique_ptr<ExprAST> ParseUnaryOpRHS(int ExprPrec);
   unique_ptr<FunctionAST> ParseTopLevelExpr();
 private:
   void SetupPrecedence();
   void SetupInput(const string& Str);
-  map<string, int> mBinopPrecedence;
+  map<string, int> mBinaryOpPrecedence;
+  map<string, int> mUnaryOpPrecedence;
   string mInputString;
   istringstream mInputStream;
   tuple<Token, variant<string, double>> mCurrentToken;
