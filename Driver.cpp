@@ -45,7 +45,7 @@ void Driver::traverseAST(const ExprAST* Node) const {
   } else if (Type == "CallExprAST") {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const CallExprAST*>(Node)->getCallee() << " ; numargs = "
-              << static_cast<const CallExprAST*>(Node)->getNumberOfArguments();
+              << static_cast<const CallExprAST*>(Node)->getNumberOfArguments() << std::endl;
     std::cout << "Visiting the arguments:\n";
     vector<const ExprAST*> v = static_cast<const CallExprAST*>(Node)->getArguments();
     for (const auto& i : v) {
