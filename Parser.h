@@ -38,7 +38,7 @@ public:
   unique_ptr<ExprAST> ParsePrimary();
   unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, unique_ptr<ExprAST> LHS);
   unique_ptr<ExprAST> ParseExpression();
-  unique_ptr<ExprAST> ParseUnaryOpRHS(int ExprPrec);
+  unique_ptr<ExprAST> ParseUnaryOpRHS();
   unique_ptr<PrototypeAST> ParsePrototype();
   unique_ptr<FunctionAST> ParseDefinition();
   unique_ptr<FunctionAST> ParseTopLevelExpr();

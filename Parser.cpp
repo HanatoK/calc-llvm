@@ -181,7 +181,7 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
       // Parse a signed number
       const char Op = std::get<string>(std::get<1>(mCurrentToken))[0];
       if ((Op == '-') || (Op == '+')) {
-        return ParseUnaryOpRHS(0);
+        return ParseUnaryOpRHS();
       } else {
         const string ErrorMsg = string("Expect a number before ") + Op;
         return LogError(ErrorMsg);
@@ -207,34 +207,38 @@ unique_ptr<ExprAST> Parser::ParseExpression() {
   return ParseBinOpRHS(0, move(LHS));
 }
 
-unique_ptr<ExprAST> Parser::ParseUnaryOpRHS(int ExprPrec) {
-  // TODO: I do not totally solve the problem here!
-  // TODO: check the power operator ^
+unique_ptr<ExprAST> Parser::ParseUnaryOpRHS() {
+  // TODO: I am new to writing a parser. Does the code work for all cases??
 #ifdef DEBUG_PARSER
   std::cout << "unique_ptr<ExprAST> Parser::ParseUnaryOpRHS()\n";
   PrintCurrentToken();
 #endif
   using std::get;
+  // treat LHS as a zero number for signed values
+  auto LHS = make_unique<NumberExprAst>(0.0);
   unique_ptr<ExprAST> RHS;
+  // get the precedence of the current unary operator
   const string Op = get<string>(get<1>(mCurrentToken));
   const int TokPrec = GetUnaryPrecedence(Op);
-  if (TokPrec < ExprPrec)
-    return RHS;
+  // eat up the operator
   getNextToken();
-  auto LHS = make_unique<NumberExprAst>(0.0);
+  // expect a primary expression after the sign
   RHS = ParsePrimary();
   if (!RHS)
     return nullptr;
+  // continue to parse the next operator
   int NextPrec = GetBinaryPrecedence(get<string>(get<1>(mCurrentToken)));
+  // NextPrec is -1 for non-operator tokens
+  // The case that NextPrec is larger than TokPrec only happens when
+  // there is a ^ (power operator).
   if (TokPrec < NextPrec) {
     // take the current RHS as the LHS of the new operator,
-    // and parse the binary expression for the new one again
+    // and parse the binary expression for the new one again.
     RHS = ParseBinOpRHS(TokPrec + 1, move(RHS));
     if (!RHS)
       return nullptr;
   }
-  RHS = make_unique<BinaryExprAST>(Op, move(LHS), move(RHS));
-  return RHS;
+  return make_unique<BinaryExprAST>(Op, move(LHS), move(RHS));
 }
 
 unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
