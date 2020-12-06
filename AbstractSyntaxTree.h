@@ -94,7 +94,7 @@ public:
     if (!mRHS) return nullptr;
     return mRHS.get();
   }
-  BinaryExprAST(char Op, unique_ptr<ExprAST> LHS, unique_ptr<ExprAST> RHS)
+  BinaryExprAST(const string& Op, unique_ptr<ExprAST> LHS, unique_ptr<ExprAST> RHS)
     : mOperator{Op}, mLHS(move(LHS)), mRHS(move(RHS)) {}
   virtual Value *codegen(LLVMContext& TheContext,
                          IRBuilder<>& Builder,

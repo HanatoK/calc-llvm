@@ -52,8 +52,19 @@ Value *BinaryExprAST::codegen(LLVMContext& TheContext,
     return Builder.CreateFMul(L, R, "multmp");
   } else if (mOperator == "/") {
     return Builder.CreateFDiv(L, R, "divtmp");
+  } else if (mOperator == "^") {
+    Function *CallPow = TheModule.getFunction("pow");
+    if (!CallPow)
+      return LogErrorV("unknown function referenced");
+    if (CallPow->arg_size() != 2) {
+      std::cerr << "Should be " << CallPow->arg_size() << " arguments\n";
+      return LogErrorV("incorrect # arguments passed");
+    }
+    vector<Value *> ArgsV;
+    ArgsV.push_back(L);
+    ArgsV.push_back(R);
+    return Builder.CreateCall(CallPow, ArgsV, "powtmp");
   } else {
-    // TODO: handle the power operator
     return LogErrorV("invalid binary operator");
   }
 }

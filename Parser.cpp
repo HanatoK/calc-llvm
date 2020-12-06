@@ -40,6 +40,11 @@ void Parser::SetupPrecedence() {
   mBinaryOpPrecedence["^"] = 300;
   mUnaryOpPrecedence["+"] = 250;
   mUnaryOpPrecedence["-"] = 250;
+  mRightAssociative["+"] = false;
+  mRightAssociative["-"] = false;
+  mRightAssociative["*"] = false;
+  mRightAssociative["/"] = false;
+  mRightAssociative["^"] = true;
 }
 
 int Parser::GetBinaryPrecedence(const string& Op) const {
@@ -57,6 +62,15 @@ int Parser::GetUnaryPrecedence(const string& Op) const {
     return FindRes->second;
   } else {
     return -1;
+  }
+}
+
+bool Parser::IsRightAssociative(const string& Op) const {
+  auto FindRes = mRightAssociative.find(Op);
+  if (FindRes != mRightAssociative.end()) {
+    return FindRes->second;
+  } else {
+    return false;
   }
 }
 
@@ -212,13 +226,13 @@ unique_ptr<ExprAST> Parser::ParseUnaryOpRHS(int ExprPrec) {
     return nullptr;
   int NextPrec = GetBinaryPrecedence(get<string>(get<1>(mCurrentToken)));
   if (TokPrec < NextPrec) {
-    std::cout << "Here!\n";
-    // take the current RHS as LHS, and parse the binary expression
+    // take the current RHS as the LHS of the new operator,
+    // and parse the binary expression for the new one again
     RHS = ParseBinOpRHS(TokPrec + 1, move(RHS));
     if (!RHS)
       return nullptr;
   }
-  RHS = make_unique<BinaryExprAST>(Op[0], move(LHS), move(RHS));
+  RHS = make_unique<BinaryExprAST>(Op, move(LHS), move(RHS));
   return RHS;
 }
 
@@ -239,24 +253,35 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
 #endif
     if (TokPrec < ExprPrec)
       return LHS;
-    auto BinOpToken = mCurrentToken;
     getNextToken();
     auto RHS = ParsePrimary();
     if (!RHS)
       return nullptr;
-    int NextPrec = GetBinaryPrecedence(get<string>(get<1>(mCurrentToken)));
+    const string NextOp = get<string>(get<1>(mCurrentToken));
+    const int NextPrec = GetBinaryPrecedence(NextOp);
 #ifdef DEBUG_PARSER
     std::cout << "Next token in Parser::ParseBinOpRHS(): ";
     PrintCurrentToken();
     std::cout << "Next precedence: NextPrec = " << NextPrec << "\n";
 #endif
+    if (Op == NextOp) {
+      // check if the same operators are right-associative
+      const bool Ra = IsRightAssociative(Op);
+      if (Ra) {
+#ifdef DEBUG_PARSER
+        std::cout << "This is a right-associative operator\n";
+#endif
+        RHS = ParseBinOpRHS(TokPrec, move(RHS));
+        if (!RHS)
+          return nullptr;
+      }
+    }
     if (TokPrec < NextPrec) {
       RHS = ParseBinOpRHS(TokPrec + 1, move(RHS));
       if (!RHS)
         return nullptr;
     }
-    const char BinOp = get<string>(get<1>(BinOpToken))[0];
-    LHS = make_unique<BinaryExprAST>(BinOp, move(LHS), move(RHS));
+    LHS = make_unique<BinaryExprAST>(Op, move(LHS), move(RHS));
   }
 }
 

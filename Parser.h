@@ -28,6 +28,7 @@ public:
   string getInputString() const;
   int GetBinaryPrecedence(const string& Op) const;
   int GetUnaryPrecedence(const string& Op) const;
+  bool IsRightAssociative(const string& Op) const;
   tuple<Token, variant<string, double>> getNextToken();
   tuple<Token, variant<string, double>> getCurrentToken() const;
   void PrintCurrentToken() const;
@@ -43,6 +44,7 @@ private:
   void SetupPrecedence();
   void SetupInput(const string& Str);
   map<string, int> mBinaryOpPrecedence;
+  map<string, bool> mRightAssociative;
   map<string, int> mUnaryOpPrecedence;
   string mInputString;
   istringstream mInputStream;
