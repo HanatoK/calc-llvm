@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # add the executable
-add_executable(main main.cpp Parser.cpp Lexer.cpp AbstractSyntaxTree.cpp Driver.cpp)
+add_executable(main main.cpp Parser.cpp Lexer.cpp AbstractSyntaxTree.cpp Driver.cpp MainJIT.cpp)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
