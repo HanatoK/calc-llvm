@@ -9,12 +9,14 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <tuple>
 
 #include "Parser.h"
 
 using std::map;
 using std::string;
 using std::unique_ptr;
+using std::tuple;
 
 using llvm::LLVMContext;
 using llvm::IRBuilder;
@@ -27,7 +29,7 @@ public:
   Driver(const Parser& p);
   void HandleTopLevelExpression();
   void MainLoop();
-  double traverseAST(const ExprAST* Node) const;
+  tuple<string, double> traverseAST(const ExprAST* Node) const;
   void traverseAST(const PrototypeAST* Node) const;
   void traverseAST(const FunctionAST* Node) const;
 private:

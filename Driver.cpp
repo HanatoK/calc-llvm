@@ -44,18 +44,20 @@ void Driver::MainLoop() {
   }
 }
 
-double Driver::traverseAST(const ExprAST* Node) const {
+tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
+  using std::make_tuple;
   static int index = 0;
   const string Type = Node->Type();
   if (Type == "ExprAST") {
-    return 0;
+    return make_tuple("", 0);
   } else if (Type == "NumberExprAst") {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
-    std::cout << "Compute var" << index << " = "
+    const string ResName = "res" + std::to_string(index);
+    std::cout << "Compute " << ResName << " = "
               << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
     ++index;
-    return static_cast<const NumberExprAst*>(Node)->getNumber();
+    return make_tuple(ResName, static_cast<const NumberExprAst*>(Node)->getNumber());
   } else if (Type == "VariableExprAST") {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const VariableExprAST*>(Node)->getVariable() << std::endl;
@@ -63,9 +65,9 @@ double Driver::traverseAST(const ExprAST* Node) const {
     const string Op = static_cast<const BinaryExprAST*>(Node)->getOperator();
     std::cout << "Visiting a " << Type << ": " << Op << std::endl;
     std::cout << "Visiting the LHS: " << std::endl;
-    const double ValL = traverseAST(static_cast<const BinaryExprAST*>(Node)->getLHSExpr());
+    const auto [ResNameL, ValL] = traverseAST(static_cast<const BinaryExprAST*>(Node)->getLHSExpr());
     std::cout << "Visiting the RHS: " << std::endl;
-    const double ValR = traverseAST(static_cast<const BinaryExprAST*>(Node)->getRHSExpr());
+    const auto [ResNameR, ValR] = traverseAST(static_cast<const BinaryExprAST*>(Node)->getRHSExpr());
     double result = 0;
     if (Op == "+") {result = ValL + ValR;}
     else if (Op == "-") {result = ValL - ValR;}
@@ -73,10 +75,11 @@ double Driver::traverseAST(const ExprAST* Node) const {
     else if (Op == "/") {result = ValL / ValR;}
     else if (Op == "^") {result = std::pow(ValL, ValR);}
     else {result = 0;}
-    std::cout << "Compute var" << index << " = "
-              << ValL << " " << Op << " " << ValR << std::endl;
+    const string ResName = "res" + std::to_string(index);
+    std::cout << "Compute " << ResName << " = "
+              << ResNameL << " " << Op << " " << ResNameR << std::endl;
     ++index;
-    return result;
+    return make_tuple(ResName, result);
   } else if (Type == "CallExprAST") {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const CallExprAST*>(Node)->getCallee() << " ; numargs = "
@@ -85,11 +88,11 @@ double Driver::traverseAST(const ExprAST* Node) const {
     vector<const ExprAST*> v = static_cast<const CallExprAST*>(Node)->getArguments();
     vector<double> ArgumentResults;
     for (const auto& i : v) {
-      ArgumentResults.push_back(traverseAST(i));
+      ArgumentResults.push_back(std::get<1>(traverseAST(i)));
     }
     // TODO: call the function with ArgumentResults
   }
-  return 0;
+  return make_tuple("", 0);
 }
 
 void Driver::traverseAST(const PrototypeAST* Node) const {
@@ -103,6 +106,6 @@ void Driver::traverseAST(const FunctionAST* Node) const {
   std::cout << "Visiting the prototype:\n";
   traverseAST(Node->getPrototype());
   std::cout << "Visiting the function body:\n";
-  const double result = traverseAST(Node->getBody());
+  const auto [ResName, result] = traverseAST(Node->getBody());
   std::cout << "Result = " << result << std::endl;
 }
