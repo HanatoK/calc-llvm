@@ -6,6 +6,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <string>
 #include <memory>
 #include <utility>
@@ -23,6 +24,7 @@ using llvm::LLVMContext;
 using llvm::IRBuilder;
 using llvm::Module;
 using llvm::Function;
+using llvm::legacy::FunctionPassManager;
 
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
@@ -192,6 +194,7 @@ public:
   Function *codegen(LLVMContext& TheContext,
                     IRBuilder<>& Builder,
                     Module& TheModule,
+                    FunctionPassManager& FPM,
                     map<string, Value*>& NamedValues);
 };
 

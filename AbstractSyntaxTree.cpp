@@ -122,6 +122,7 @@ Function *PrototypeAST::codegen(LLVMContext& TheContext,
 Function *FunctionAST::codegen(LLVMContext& TheContext,
                                IRBuilder<>& Builder,
                                Module& TheModule,
+                               FunctionPassManager& FPM,
                                map<string, Value*>& NamedValues) {
   using llvm::Function;
   using llvm::BasicBlock;
@@ -146,6 +147,8 @@ Function *FunctionAST::codegen(LLVMContext& TheContext,
     Builder.CreateRet(RetVal);
     // Validate the generated code, checking for consistency.
     llvm::verifyFunction(*TheFunction);
+    // Run the optimizer on the function.
+    FPM.run(*TheFunction);
     return TheFunction;
   }
   // Error reading body, remove function.

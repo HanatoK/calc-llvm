@@ -7,6 +7,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/LegacyPassManager.h>
 
 #include "Parser.h"
 
@@ -16,11 +17,11 @@ using llvm::LLVMContext;
 using llvm::IRBuilder;
 using llvm::Module;
 using llvm::Value;
+using llvm::legacy::FunctionPassManager;
 
 class Driver {
 public:
-  Driver(const Parser& p):
-    mParser(p), mContext(), mBuilder(mContext), mModule("calculator", mContext) {}
+  Driver(const Parser& p);
   void HandleTopLevelExpression();
   void MainLoop();
   void traverseAST(const ExprAST* Node) const;
@@ -31,6 +32,7 @@ private:
   LLVMContext mContext;
   IRBuilder<> mBuilder;
   Module mModule;
+  FunctionPassManager mFPM;
   map<string, Value*> mNamedValues;
 };
 

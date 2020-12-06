@@ -1,8 +1,26 @@
 #include "Driver.h"
+#include <llvm/Transforms/InstCombine/InstCombine.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Scalar/GVN.h>
+
+Driver::Driver(const Parser& p):
+  mParser(p), mContext(), mBuilder(mContext), mModule("calculator", mContext),
+  mFPM(&mModule) {
+  // Do simple "peephole" optimizations and bit-twiddling optzns.
+  mFPM.add(llvm::createInstructionCombiningPass());
+  // Reassociate expressions.
+  mFPM.add(llvm::createReassociatePass());
+  // Eliminate Common SubExpressions.
+  mFPM.add(llvm::createGVNPass());
+  // Simplify the control flow graph (deleting unreachable blocks, etc).
+  mFPM.add(llvm::createCFGSimplificationPass());
+
+  mFPM.doInitialization();
+}
 
 void Driver::HandleTopLevelExpression() {
   if (auto FnAST = mParser.ParseTopLevelExpr()) {
-    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mNamedValues)) {
+    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mFPM, mNamedValues)) {
       std::cerr << "Read a top-level expr:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
