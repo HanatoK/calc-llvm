@@ -5,6 +5,7 @@
 #include "Driver.h"
 
 int main() {
+  std::string s;
   std::cin >> s;
   std::cout << "Input string: " << s << std::endl;
   Parser p(s);
