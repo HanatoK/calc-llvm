@@ -12,6 +12,16 @@ unique_ptr<ExprAST> LogError(const string& Str) {
   return nullptr;
 }
 
+unique_ptr<FunctionAST> LogErrorF(const string& Str) {
+  std::cerr << Str << std::endl;
+  return nullptr;
+}
+
+unique_ptr<PrototypeAST> LogErrorP(const string& Str) {
+  std::cerr << Str << std::endl;
+  return nullptr;
+}
+
 Value *LogErrorV(const string& Str) {
   LogError(Str);
   return nullptr;

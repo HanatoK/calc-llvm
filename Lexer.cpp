@@ -92,13 +92,12 @@ tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
     inputStream.get(mLastChar);
     return make_tuple(t, result);
   }
-  // [a-zA-Z][a-zA-Z0-9]*
-  if (std::isalpha(mLastChar)) {
-    const Token t = Token::Identifier;
+  // [_a-zA-Z][_a-zA-Z0-9]*
+  if (std::isalpha(mLastChar) || mLastChar == '_') {
     string result{mLastChar};
-    while (std::isalnum(mLastChar)) {
+    while (std::isalnum(mLastChar) || mLastChar == '_') {
       if (inputStream.get(mLastChar)) {
-        if (std::isalnum(mLastChar)) {
+        if (std::isalnum(mLastChar) || mLastChar == '_') {
           result += mLastChar;
         } else {
           break;
@@ -107,7 +106,13 @@ tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
         break;
       }
     }
-    return make_tuple(t, result);
+    if (result == "extern") {
+      return make_tuple(Token::Extern, result);
+    } else if (result == "def") {
+      return make_tuple(Token::Definition, result);
+    } else {
+      return make_tuple(Token::Identifier, result);
+    }
   }
   // operators
   if (mLastChar == '*' || mLastChar == '/' || mLastChar == '-' ||

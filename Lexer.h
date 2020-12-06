@@ -23,6 +23,8 @@ enum class Token {
   Number = -5,
   Operator = -6,
   Comma = -7,
+  Definition = -8,
+  Extern = -9,
   Unknown = -255,
 };
 

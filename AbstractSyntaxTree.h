@@ -199,6 +199,8 @@ public:
 };
 
 unique_ptr<ExprAST> LogError(const string& Str);
+unique_ptr<FunctionAST> LogErrorF(const string& Str);
+unique_ptr<PrototypeAST> LogErrorP(const string& Str);
 Value *LogErrorV(const string& Str);
 
 #endif // ABSTRACTSYNTAXTREE_H

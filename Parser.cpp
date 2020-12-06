@@ -6,6 +6,7 @@
 using std::move;
 using std::unique_ptr;
 using std::string;
+using std::vector;
 
 // #define DEBUG_PARSER
 
@@ -285,6 +286,48 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
   }
 }
 
+unique_ptr<PrototypeAST> Parser::ParsePrototype() {
+  using std::get;
+  if (get<0>(mCurrentToken) != Token::Identifier)
+    return LogErrorP("Expected function name in prototype");
+  string FnName = get<string>(get<1>(mCurrentToken));
+  getNextToken();
+  if (get<0>(mCurrentToken) != Token::LeftParenthesis)
+    return LogErrorP("Expected '(' in prototype");
+  vector<string> ArgNames;
+  getNextToken();
+  Token t = get<0>(mCurrentToken);
+  while (t == Token::Identifier) {
+    const string IdStr = get<string>(get<1>(mCurrentToken));
+    ArgNames.push_back(IdStr);
+    getNextToken();
+    t = get<0>(mCurrentToken);
+    if (t == Token::RightParenthesis) break;
+    if (t != Token::Comma) {
+      const string ErrorMsg = string{"Expected a comma(,) after "} + IdStr +
+                              " but got " +
+                              get<string>(get<1>(mCurrentToken));
+      return LogErrorP(ErrorMsg);
+    }
+    getNextToken();
+    t = get<0>(mCurrentToken);
+  }
+  if (t != Token::RightParenthesis)
+    return LogErrorP("Expected ')' in prototype");
+  getNextToken();
+  return make_unique<PrototypeAST>(FnName, move(ArgNames));
+}
+
+unique_ptr<FunctionAST> Parser::ParseDefinition() {
+  getNextToken(); // eat def.
+  auto Proto = ParsePrototype();
+  if (!Proto)
+    return nullptr;
+  if (auto E = ParseExpression())
+    return make_unique<FunctionAST>(move(Proto), move(E));
+  return nullptr;
+}
+
 unique_ptr<FunctionAST> Parser::ParseTopLevelExpr() {
   if (auto E = ParseExpression()) {
     // Make an anonymous proto.
@@ -292,4 +335,9 @@ unique_ptr<FunctionAST> Parser::ParseTopLevelExpr() {
     return make_unique<FunctionAST>(move(Proto), move(E));
   }
   return nullptr;
+}
+
+unique_ptr<PrototypeAST> Parser::ParseExtern() {
+  getNextToken(); // eat extern.
+  return ParsePrototype();
 }
