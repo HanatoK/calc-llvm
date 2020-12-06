@@ -7,7 +7,7 @@ using std::move;
 using std::unique_ptr;
 using std::string;
 
-#define DEBUG_PARSER
+// #define DEBUG_PARSER
 
 Parser::Parser() {
   SetupPrecedence();

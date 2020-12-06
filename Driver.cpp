@@ -45,12 +45,14 @@ void Driver::MainLoop() {
 }
 
 double Driver::traverseAST(const ExprAST* Node) const {
+  static int index = 0;
   const string Type = Node->Type();
   if (Type == "ExprAST") {
     return 0;
   } else if (Type == "NumberExprAst") {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
+    ++index;
     return static_cast<const NumberExprAst*>(Node)->getNumber();
   } else if (Type == "VariableExprAST") {
     std::cout << "Visiting a " << Type << ": "
@@ -69,6 +71,9 @@ double Driver::traverseAST(const ExprAST* Node) const {
     else if (Op == "/") {result = ValL / ValR;}
     else if (Op == "^") {result = std::pow(ValL, ValR);}
     else {result = 0;}
+    std::cout << "Compute var" << index << " = "
+              << ValL << " " << Op << " " << ValR << std::endl;
+    ++index;
     return result;
   } else if (Type == "CallExprAST") {
     std::cout << "Visiting a " << Type << ": "
@@ -76,9 +81,11 @@ double Driver::traverseAST(const ExprAST* Node) const {
               << static_cast<const CallExprAST*>(Node)->getNumberOfArguments() << std::endl;
     std::cout << "Visiting the arguments:\n";
     vector<const ExprAST*> v = static_cast<const CallExprAST*>(Node)->getArguments();
+    vector<double> ArgumentResults;
     for (const auto& i : v) {
-      return traverseAST(i);
+      ArgumentResults.push_back(traverseAST(i));
     }
+    // TODO: call the function with ArgumentResults
   }
   return 0;
 }
