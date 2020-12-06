@@ -27,10 +27,9 @@ public:
   Driver(const Parser& p);
   void HandleTopLevelExpression();
   void MainLoop();
-  void traverseAST(const ExprAST* Node) const;
+  double traverseAST(const ExprAST* Node) const;
   void traverseAST(const PrototypeAST* Node) const;
   void traverseAST(const FunctionAST* Node) const;
-  const ExprAST* evaluateAST(const ExprAST* Node) const;
 private:
   Parser mParser;
   LLVMContext mContext;
