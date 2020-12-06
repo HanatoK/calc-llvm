@@ -2,6 +2,7 @@
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
+#include <cmath>
 
 Driver::Driver(const Parser& p):
   mParser(p), mContext(), mBuilder(mContext), mModule("calculator", mContext),
@@ -84,4 +85,42 @@ void Driver::traverseAST(const FunctionAST* Node) const {
   traverseAST(Node->getPrototype());
   std::cout << "Visiting the function body:\n";
   traverseAST(Node->getBody());
+}
+
+const ExprAST* Driver::evaluateAST(const ExprAST* Node) const {
+  // TODO: use smart pointer!!!
+  const string Type = Node->Type();
+  if (Type == "ExprAST") {
+    return nullptr;
+  } else if (Type == "NumberExprAst") {
+    return Node;
+  } else if (Type == "VariableExprAST") {
+    std::cout << "Evaluation of VariableExprAST is not implemented.\n";
+    return nullptr;
+  } else if (Type == "BinaryExprAST") {
+    const ExprAST* LHS = static_cast<const BinaryExprAST*>(Node)->getLHSExpr();
+    const ExprAST* RHS = static_cast<const BinaryExprAST*>(Node)->getRHSExpr();
+    LHS = evaluateAST(LHS);
+    RHS = evaluateAST(RHS);
+    if ((LHS->Type() == "NumberExprAst") && (RHS->Type() == "NumberExprAst")) {
+      const string Op = static_cast<const BinaryExprAST*>(Node)->getOperator();
+      const double ValL = static_cast<const NumberExprAst*>(LHS)->getNumber();
+      const double ValR = static_cast<const NumberExprAst*>(RHS)->getNumber();
+      if (Op == "+") {
+        return new NumberExprAst(ValL + ValR);
+      } else if (Op == "-") {
+        return new NumberExprAst(ValL - ValR);
+      } else if (Op == "*") {
+        return new NumberExprAst(ValL * ValR);
+      } else if (Op == "/") {
+        return new NumberExprAst(ValL / ValR);
+      } else if (Op == "^") {
+        return new NumberExprAst(std::pow(ValL, ValR));
+      } else {
+        std::cout << "Unknown operator " << Op << "\n";
+        return nullptr;
+      }
+    }
+  }
+  return nullptr;
 }

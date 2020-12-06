@@ -1,18 +1,21 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-#include <map>
-#include <string>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <map>
+#include <string>
+#include <memory>
 
 #include "Parser.h"
 
 using std::map;
 using std::string;
+using std::unique_ptr;
+
 using llvm::LLVMContext;
 using llvm::IRBuilder;
 using llvm::Module;
@@ -27,6 +30,7 @@ public:
   void traverseAST(const ExprAST* Node) const;
   void traverseAST(const PrototypeAST* Node) const;
   void traverseAST(const FunctionAST* Node) const;
+  const ExprAST* evaluateAST(const ExprAST* Node) const;
 private:
   Parser mParser;
   LLVMContext mContext;
