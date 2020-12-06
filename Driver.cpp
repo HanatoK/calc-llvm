@@ -52,6 +52,8 @@ double Driver::traverseAST(const ExprAST* Node) const {
   } else if (Type == "NumberExprAst") {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
+    std::cout << "Compute var" << index << " = "
+              << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
     ++index;
     return static_cast<const NumberExprAst*>(Node)->getNumber();
   } else if (Type == "VariableExprAST") {
