@@ -28,6 +28,8 @@ class Driver {
 public:
   Driver(const Parser& p);
   void HandleTopLevelExpression();
+  void HandleExtern();
+  void HandleDefinition();
   void MainLoop();
   tuple<string, double> traverseAST(const ExprAST* Node) const;
   void traverseAST(const PrototypeAST* Node) const;

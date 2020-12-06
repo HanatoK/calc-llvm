@@ -25,6 +25,7 @@ enum class Token {
   Comma = -7,
   Definition = -8,
   Extern = -9,
+  Semicolon = -10,
   Unknown = -255,
 };
 

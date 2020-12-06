@@ -32,11 +32,47 @@ void Driver::HandleTopLevelExpression() {
   }
 }
 
+void Driver::HandleDefinition() {
+  if (auto FnAST = mParser.ParseDefinition()) {
+    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mFPM, mNamedValues)) {
+      std::cerr << "Read function definition:\n";
+      FnIR->print(llvm::errs());
+      std::cerr << std::endl;
+    }
+    traverseAST(FnAST.get());
+  } else {
+    mParser.getNextToken();
+  }
+}
+
+void Driver::HandleExtern() {
+  if (auto FnAST = mParser.ParseExtern()) {
+    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mNamedValues)) {
+      std::cerr << "Read extern:\n";
+      FnIR->print(llvm::errs());
+      std::cerr << std::endl;
+    }
+    traverseAST(FnAST.get());
+  } else {
+    mParser.getNextToken();
+  }
+}
+
 void Driver::MainLoop() {
   mParser.getNextToken();
   while (true) {
+    std::cerr << "ready> ";
     switch (std::get<0>(mParser.getCurrentToken())) {
       case Token::Eof: return;
+      case Token::Semicolon:
+        mParser.getNextToken();
+        break;
+      case Token::Definition:
+        HandleDefinition();
+        break;
+      case Token::Extern:
+        HandleExtern();
+        break;
       default:
         HandleTopLevelExpression();
         break;

@@ -292,8 +292,10 @@ unique_ptr<ExprAST> Parser::ParseBinOpRHS(int ExprPrec,
 
 unique_ptr<PrototypeAST> Parser::ParsePrototype() {
   using std::get;
-  if (get<0>(mCurrentToken) != Token::Identifier)
+  if (get<0>(mCurrentToken) != Token::Identifier) {
+    std::cerr << "Token: " << get<string>(get<1>(mCurrentToken)) << std::endl;
     return LogErrorP("Expected function name in prototype");
+  }
   string FnName = get<string>(get<1>(mCurrentToken));
   getNextToken();
   if (get<0>(mCurrentToken) != Token::LeftParenthesis)

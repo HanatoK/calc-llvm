@@ -92,6 +92,12 @@ tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
     inputStream.get(mLastChar);
     return make_tuple(t, result);
   }
+  if (mLastChar == ';') {
+    const Token t = Token::Semicolon;
+    const string result{mLastChar};
+    inputStream.get(mLastChar);
+    return make_tuple(t, result);
+  }
   // [_a-zA-Z][_a-zA-Z0-9]*
   if (std::isalpha(mLastChar) || mLastChar == '_') {
     string result{mLastChar};
