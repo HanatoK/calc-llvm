@@ -25,6 +25,7 @@ public:
   Parser();
   Parser(const string& Str);
   Parser(const Parser& p);
+  void SetupInput(const string& Str);
   string getInputString() const;
   int GetBinaryPrecedence(const string& Op) const;
   int GetUnaryPrecedence(const string& Op) const;
@@ -45,7 +46,6 @@ public:
   unique_ptr<PrototypeAST> ParseExtern();
 private:
   void SetupPrecedence();
-  void SetupInput(const string& Str);
   map<string, int> mBinaryOpPrecedence;
   map<string, bool> mRightAssociative;
   map<string, int> mUnaryOpPrecedence;

@@ -59,11 +59,26 @@ void Driver::HandleExtern() {
 }
 
 void Driver::MainLoop() {
-  mParser.getNextToken();
+//   mParser.getNextToken();
+  bool firsttime = true;
+  mParser.PrintCurrentToken();
   while (true) {
     std::cerr << "ready> ";
+    std::string line;
+    std::getline(std::cin, line);
+    mParser.SetupInput(line);
+    std::cout << "Current input line: " << line << std::endl;
+    if (firsttime) {
+      mParser.getNextToken();
+      firsttime = false;
+    }
+    mParser.PrintCurrentToken();
     switch (std::get<0>(mParser.getCurrentToken())) {
-      case Token::Eof: return;
+      case Token::Eof: {
+        std::cout << "Current string:\n";
+        std::cout << mParser.getInputString() << std::endl;
+        return;
+      }
       case Token::Semicolon:
         mParser.getNextToken();
         break;

@@ -27,6 +27,7 @@ Parser::Parser(const Parser& p) {
 void Parser::SetupInput(const string& Str) {
   mInputString = Str;
   mInputStream.str(Str);
+//   mLexer.clearState();
 }
 
 string Parser::getInputString() const {
