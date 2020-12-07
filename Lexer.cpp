@@ -146,6 +146,7 @@ tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
           // TODO: what will happen here?
         }
       } else if (std::isdigit(mLastChar)) {
+        if (num_e > 0) --num_e;
         ++num_digit;
         NumStr += mLastChar;
       } else if (mLastChar == '.') {
@@ -154,6 +155,9 @@ tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
       } else {
         if (num_e > 0 && (mLastChar == '+' || mLastChar == '-')) {
           NumStr += mLastChar;
+          // 'e' should only appear once,
+          // so this branch should only run once
+          --num_e;
         } else {
           break;
         }
