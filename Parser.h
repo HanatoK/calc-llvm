@@ -17,7 +17,7 @@ using std::string;
 using std::unique_ptr;
 using std::variant;
 using std::tuple;
-using std::istringstream;
+using std::stringstream;
 using std::make_unique;
 
 class Parser {
@@ -26,6 +26,7 @@ public:
   Parser(const string& Str);
   Parser(const Parser& p);
   void SetupInput(const string& Str);
+  void AppendString(const string& Str);
   string getInputString() const;
   int GetBinaryPrecedence(const string& Op) const;
   int GetUnaryPrecedence(const string& Op) const;
@@ -50,7 +51,7 @@ private:
   map<string, bool> mRightAssociative;
   map<string, int> mUnaryOpPrecedence;
   string mInputString;
-  istringstream mInputStream;
+  stringstream mInputStream;
   tuple<Token, variant<string, double>> mCurrentToken;
   Lexer mLexer;
 };

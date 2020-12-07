@@ -66,12 +66,16 @@ void Driver::MainLoop() {
     std::cerr << "ready> ";
     std::string line;
     std::getline(std::cin, line);
-    mParser.SetupInput(line);
     std::cout << "Current input line: " << line << std::endl;
     if (firsttime) {
+      mParser.SetupInput(line);
       mParser.getNextToken();
       firsttime = false;
+    } else {
+      mParser.SetupInput(line);
+      mParser.getNextToken();
     }
+    std::cout << "Current buffer: " << mParser.getInputString() << std::endl;
     mParser.PrintCurrentToken();
     switch (std::get<0>(mParser.getCurrentToken())) {
       case Token::Eof: {
@@ -92,6 +96,8 @@ void Driver::MainLoop() {
         HandleTopLevelExpression();
         break;
     }
+    std::cout << "switch end: ";
+    mParser.PrintCurrentToken();
   }
 }
 

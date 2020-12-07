@@ -10,28 +10,36 @@ using std::vector;
 
 // #define DEBUG_PARSER
 
-Parser::Parser() {
+Parser::Parser():
+  mInputStream(std::ios_base::ate | std::ios_base::in | std::ios_base::out) {
   SetupPrecedence();
 }
 
-Parser::Parser(const string& Str) {
+Parser::Parser(const string& Str):
+  mInputStream(std::ios_base::ate | std::ios_base::in | std::ios_base::out) {
   SetupPrecedence();
   SetupInput(Str);
 }
 
-Parser::Parser(const Parser& p) {
+Parser::Parser(const Parser& p):
+  mInputStream(std::ios_base::ate | std::ios_base::in | std::ios_base::out) {
   this->SetupPrecedence();
   this->SetupInput(p.getInputString());
 }
 
+void Parser::AppendString(const string& Str) {
+  mInputStream << Str;
+}
+
 void Parser::SetupInput(const string& Str) {
   mInputString = Str;
+  mInputStream.clear();
   mInputStream.str(Str);
-//   mLexer.clearState();
+  mLexer.clearState();
 }
 
 string Parser::getInputString() const {
-  return mInputString;
+  return mInputStream.str();
 }
 
 void Parser::SetupPrecedence() {
