@@ -165,3 +165,31 @@ Function *FunctionAST::codegen(LLVMContext& TheContext,
   TheFunction->eraseFromParent();
   return nullptr;
 }
+
+unique_ptr<ExprAST> NumberExprAst::clone() const {
+  return make_unique<NumberExprAst>(mValue);
+}
+
+unique_ptr<ExprAST> VariableExprAST::clone() const {
+  return make_unique<VariableExprAST>(mName);
+}
+
+unique_ptr<ExprAST> BinaryExprAST::clone() const {
+  return make_unique<BinaryExprAST>(mOperator, mLHS->clone(), mRHS->clone());
+}
+
+unique_ptr<ExprAST> CallExprAST::clone() const {
+  vector<unique_ptr<ExprAST>> NewArgs;
+  for (const auto& i : mArguments) {
+    NewArgs.emplace_back(i->clone());
+  }
+  return make_unique<CallExprAST>(mCallee, move(NewArgs));
+}
+
+unique_ptr<PrototypeAST> PrototypeAST::clone() const {
+  return make_unique<PrototypeAST>(mName, mArguments);
+}
+
+unique_ptr<FunctionAST> FunctionAST::clone() const {
+  return make_unique<FunctionAST>(mPrototype->clone(), mBody->clone());
+}

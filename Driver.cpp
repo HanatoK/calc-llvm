@@ -4,6 +4,8 @@
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <cmath>
 
+// #define DEBUG_DRIVER
+
 Driver::Driver(const Parser& p):
   mParser(p), mContext(), mBuilder(mContext), mModule("calculator", mContext),
   mFPM(&mModule) {
@@ -26,7 +28,7 @@ void Driver::HandleTopLevelExpression() {
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
     }
-    traverseAST(FnAST.get());
+    traverseAST(FnAST->clone().get());
   } else {
     mParser.getNextToken();
   }
@@ -66,7 +68,7 @@ void Driver::MainLoop() {
     std::cerr << "ready> ";
     std::string line;
     std::getline(std::cin, line);
-    std::cout << "Current input line: " << line << std::endl;
+//     std::cout << "Current input line: " << line << std::endl;
     if (firsttime) {
       mParser.SetupInput(line);
       mParser.getNextToken();
@@ -96,7 +98,7 @@ void Driver::MainLoop() {
         HandleTopLevelExpression();
         break;
     }
-    std::cout << "switch end: ";
+//     std::cout << "switch end: ";
     mParser.PrintCurrentToken();
   }
 }
@@ -122,6 +124,11 @@ tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
     std::cout << "Visiting a " << Type << ": "
               << static_cast<const VariableExprAST*>(Node)->getVariable() << std::endl;
 #endif
+    const string ResName = "res" + std::to_string(index);
+    std::cout << "Compute " << ResName << " = "
+              << static_cast<const VariableExprAST*>(Node)->getVariable() << std::endl;
+    ++index;
+    return make_tuple(ResName, 0.0);
   } else if (Type == "BinaryExprAST") {
     const string Op = static_cast<const BinaryExprAST*>(Node)->getOperator();
 #ifdef DEBUG_DRIVER

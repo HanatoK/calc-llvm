@@ -15,6 +15,7 @@
 
 using std::string;
 using std::unique_ptr;
+using std::make_unique;
 using std::move;
 using std::vector;
 using std::map;
@@ -37,6 +38,7 @@ public:
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues) = 0;
+  virtual unique_ptr<ExprAST> clone() const = 0;
 };
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
@@ -55,6 +57,7 @@ public:
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
+  virtual unique_ptr<ExprAST> clone() const;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -73,6 +76,7 @@ public:
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
+  virtual unique_ptr<ExprAST> clone() const;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -102,6 +106,7 @@ public:
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
+  virtual unique_ptr<ExprAST> clone() const;
 };
 
 /// UnaryExprAST - Expression class for a unary operator.
@@ -144,6 +149,7 @@ public:
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
+  virtual unique_ptr<ExprAST> clone() const;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -170,6 +176,7 @@ public:
                     IRBuilder<>& Builder,
                     Module& TheModule,
                     map<string, Value*>& NamedValues);
+  virtual unique_ptr<PrototypeAST> clone() const;
 };
 
 /// FunctionAST - This class represents a function definition itself.
@@ -196,6 +203,7 @@ public:
                     Module& TheModule,
                     FunctionPassManager& FPM,
                     map<string, Value*>& NamedValues);
+  virtual unique_ptr<FunctionAST> clone() const;
 };
 
 unique_ptr<ExprAST> LogError(const string& Str);
