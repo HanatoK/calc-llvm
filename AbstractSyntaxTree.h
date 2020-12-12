@@ -213,6 +213,7 @@ public:
                     FunctionPassManager& FPM,
                     map<string, Value*>& NamedValues);
   virtual unique_ptr<FunctionAST> clone() const;
+  virtual unique_ptr<FunctionAST> Derivative(const string& Variable) const;
 };
 
 unique_ptr<ExprAST> LogError(const string& Str);

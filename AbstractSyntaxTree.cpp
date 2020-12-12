@@ -260,3 +260,9 @@ unique_ptr<ExprAST> CallExprAST::Derivative(const string& Variable) const {
   // TODO: compute the function Derivative
   return nullptr;
 }
+
+unique_ptr<FunctionAST> FunctionAST::Derivative(const string& Variable) const {
+  auto Derivative = mBody->Derivative(Variable);
+  auto DerivativePrototype = make_unique<PrototypeAST>("", mPrototype->getArgumentNames());
+  return make_unique<FunctionAST>(move(DerivativePrototype), move(Derivative));
+}

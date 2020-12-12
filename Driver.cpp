@@ -29,9 +29,16 @@ void Driver::HandleTopLevelExpression() {
       std::cerr << std::endl;
     }
     traverseAST(FnAST->clone().get());
-    std::cout << "Traverse the derivative:\n";
     // TODO: read from a symbol table to replace the hard-coded "x"
-    traverseAST(FnAST->getBody()->Derivative("x").get());
+    if (auto FnDerivAST = FnAST->Derivative("x")) {
+      if (auto *FnDerivIR = FnDerivAST->codegen(mContext, mBuilder, mModule, mFPM, mNamedValues)) {
+        std::cerr << "Derivative function IR:\n";
+        FnDerivIR->print(llvm::errs());
+        std::cerr << std::endl;
+      }
+      std::cout << "Traverse the derivative:\n";
+      traverseAST(FnDerivAST.get());
+    }
   } else {
     mParser.getNextToken();
   }
