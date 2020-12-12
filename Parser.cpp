@@ -117,7 +117,7 @@ unique_ptr<ExprAST> Parser::ParseNumberExpr() {
   std::cout << "unique_ptr<ExprAST> Parser::ParseNumberExpr()\n";
   PrintCurrentToken();
 #endif
-  auto Result = make_unique<NumberExprAst>(std::get<double>(std::get<1>(mCurrentToken)));
+  auto Result = make_unique<NumberExprAST>(std::get<double>(std::get<1>(mCurrentToken)));
   getNextToken();
   return move(Result);
 }
@@ -224,7 +224,7 @@ unique_ptr<ExprAST> Parser::ParseUnaryOpRHS() {
 #endif
   using std::get;
   // treat LHS as a zero number for signed values
-  auto LHS = make_unique<NumberExprAst>(0.0);
+  auto LHS = make_unique<NumberExprAST>(0.0);
   unique_ptr<ExprAST> RHS;
   // get the precedence of the current unary operator
   const string Op = get<string>(get<1>(mCurrentToken));

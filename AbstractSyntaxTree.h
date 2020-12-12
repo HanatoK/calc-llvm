@@ -27,6 +27,9 @@ using llvm::Module;
 using llvm::Function;
 using llvm::legacy::FunctionPassManager;
 
+class CallExprAST;
+class NumberExprAST;
+
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
 public:
@@ -39,25 +42,27 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues) = 0;
   virtual unique_ptr<ExprAST> clone() const = 0;
+  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
 };
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
-class NumberExprAst: public ExprAST {
+class NumberExprAST: public ExprAST {
 private:
   double mValue;
 public:
   virtual string Type() const {
-    return string{"NumberExprAst"};
+    return string{"NumberExprAST"};
   }
   double getNumber() const {
     return mValue;
   }
-  NumberExprAst(double Val): mValue(Val) {}
+  NumberExprAST(double Val): mValue(Val) {}
   virtual Value *codegen(LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
+  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -77,6 +82,7 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
+  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -100,13 +106,15 @@ public:
     if (!mRHS) return nullptr;
     return mRHS.get();
   }
-  BinaryExprAST(const string& Op, unique_ptr<ExprAST> LHS, unique_ptr<ExprAST> RHS)
+  BinaryExprAST(const string& Op, unique_ptr<ExprAST> LHS,
+                unique_ptr<ExprAST> RHS)
     : mOperator{Op}, mLHS(move(LHS)), mRHS(move(RHS)) {}
   virtual Value *codegen(LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
+  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
 };
 
 /// UnaryExprAST - Expression class for a unary operator.
@@ -150,6 +158,7 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
+  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,

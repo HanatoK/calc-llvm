@@ -29,6 +29,9 @@ void Driver::HandleTopLevelExpression() {
       std::cerr << std::endl;
     }
     traverseAST(FnAST->clone().get());
+    std::cout << "Traverse the derivative:\n";
+    // TODO: read from a symbol table to replace the hard-coded "x"
+    traverseAST(FnAST->getBody()->Derivative("x").get());
   } else {
     mParser.getNextToken();
   }
@@ -109,16 +112,16 @@ tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
   const string Type = Node->Type();
   if (Type == "ExprAST") {
     return make_tuple("", 0);
-  } else if (Type == "NumberExprAst") {
+  } else if (Type == "NumberExprAST") {
 #ifdef DEBUG_DRIVER
     std::cout << "Visiting a " << Type << ": "
-              << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
+              << static_cast<const NumberExprAST*>(Node)->getNumber() << std::endl;
 #endif
     const string ResName = "res" + std::to_string(index);
     std::cout << "Compute " << ResName << " = "
-              << static_cast<const NumberExprAst*>(Node)->getNumber() << std::endl;
+              << static_cast<const NumberExprAST*>(Node)->getNumber() << std::endl;
     ++index;
-    return make_tuple(ResName, static_cast<const NumberExprAst*>(Node)->getNumber());
+    return make_tuple(ResName, static_cast<const NumberExprAST*>(Node)->getNumber());
   } else if (Type == "VariableExprAST") {
 #ifdef DEBUG_DRIVER
     std::cout << "Visiting a " << Type << ": "

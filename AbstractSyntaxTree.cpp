@@ -27,7 +27,7 @@ Value *LogErrorV(const string& Str) {
   return nullptr;
 }
 
-Value *NumberExprAst::codegen(LLVMContext& TheContext,
+Value *NumberExprAST::codegen(LLVMContext& TheContext,
                               IRBuilder<>& Builder,
                               Module& TheModule,
                               map<string, Value*>& NamedValues) {
@@ -166,8 +166,8 @@ Function *FunctionAST::codegen(LLVMContext& TheContext,
   return nullptr;
 }
 
-unique_ptr<ExprAST> NumberExprAst::clone() const {
-  return make_unique<NumberExprAst>(mValue);
+unique_ptr<ExprAST> NumberExprAST::clone() const {
+  return make_unique<NumberExprAST>(mValue);
 }
 
 unique_ptr<ExprAST> VariableExprAST::clone() const {
@@ -192,4 +192,71 @@ unique_ptr<PrototypeAST> PrototypeAST::clone() const {
 
 unique_ptr<FunctionAST> FunctionAST::clone() const {
   return make_unique<FunctionAST>(mPrototype->clone(), mBody->clone());
+}
+
+unique_ptr<ExprAST> ExprAST::Derivative(const string& Variable) const {
+  return nullptr;
+}
+
+unique_ptr<ExprAST> NumberExprAST::Derivative(const string& Variable) const {
+  return make_unique<NumberExprAST>(0.0);
+}
+
+unique_ptr<ExprAST> VariableExprAST::Derivative(const string& Variable) const {
+  if (Variable == mName) {
+    return make_unique<NumberExprAST>(1.0);
+  } else {
+    return make_unique<NumberExprAST>(0.0);
+  }
+}
+
+unique_ptr<ExprAST> BinaryExprAST::Derivative(const string& Variable) const {
+  auto LHSDeriv = mLHS->clone()->Derivative(Variable);
+  auto RHSDeriv = mRHS->clone()->Derivative(Variable);
+  if (mOperator == "+" || mOperator == "-") {
+    // Derivative of "f(x) + g(x)" or "f(x) - g(x)"
+    // = "f'(x) + g'(x)" or "f'(x) - g'(x)"
+    return make_unique<BinaryExprAST>(mOperator, move(LHSDeriv), move(RHSDeriv));
+  } else if (mOperator == "*") {
+    // Derivative of "f(x) * g(x)"
+    // = "f'(x) * g(x) + g'(x) * f(x)"
+    auto NewLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
+    auto NewRHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
+    return make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
+  } else if (mOperator == "/") {
+    // Derivative of "f(x) / g(x)"
+    // = "(f'(x) * g(x) - g'(x) * f(x)) / (g(x) * g(x))"
+    auto NumeratorLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
+    auto NumeratorRHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
+    auto Numerator = make_unique<BinaryExprAST>("-", move(NumeratorLHS), move(NumeratorRHS));
+    auto Denominator = make_unique<BinaryExprAST>("*", mRHS->clone(), mRHS->clone());
+    return make_unique<BinaryExprAST>("/", move(Numerator), move(Denominator));
+  } else if (mOperator == "^") {
+    // Derivative of "f(x) ^ g(x)"
+    // let y = f(x) ^ g(x), then ln(y) = g(x) * ln(f(x))
+    // y'/y = g'(x) * ln(f(x)) + g(x) * (1/f(x)) * f'(x)
+    // y' = g'(x) * ln(f(x)) * (f(x) ^ g(x)) + g(x) * (1/f(x)) * f'(x) * (f(x) ^ g(x))
+    // TODO: this requires the std::log function to be registered
+    vector<unique_ptr<ExprAST>> Args;
+    Args.push_back(mLHS->clone());
+    auto LogLHS = make_unique<CallExprAST>("log", move(Args));
+    auto NewLHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), move(LogLHS));
+    NewLHS = make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
+    auto NewRHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
+    auto TmpRHSRightFactor = make_unique<BinaryExprAST>("/", make_unique<NumberExprAST>(1.0), mLHS->clone());
+    NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), move(TmpRHSRightFactor));
+    NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), this->clone());
+    return make_unique<BinaryExprAST>(mOperator, move(NewLHS), move(NewRHS));
+  } else {
+    return nullptr;
+  }
+}
+
+unique_ptr<ExprAST> CallExprAST::Derivative(const string& Variable) const {
+  vector<unique_ptr<ExprAST>> mArgsDerivative;
+  for (const auto& i : mArguments) {
+    mArgsDerivative.push_back(i->Derivative(Variable));
+  }
+  // TODO: compute the function Derivative
+  return nullptr;
 }
