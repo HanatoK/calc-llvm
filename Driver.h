@@ -37,6 +37,8 @@ public:
   void traverseAST(const PrototypeAST* Node) const;
   void traverseAST(const FunctionAST* Node) const;
   void InitializeModuleAndPassManager();
+  Function *getFunction(string Name);
+  map<string, unique_ptr<PrototypeAST>> mFunctionProtos; // BAD!!!
 private:
   Parser mParser;
   LLVMContext mContext;
@@ -45,7 +47,6 @@ private:
   unique_ptr<FunctionPassManager> mFPM;
   unique_ptr<KaleidoscopeJIT> mJIT;
   map<string, Value*> mNamedValues;
-  map<string, unique_ptr<PrototypeAST>> mFunctionProtos;
 };
 
 #endif // DRIVER_H

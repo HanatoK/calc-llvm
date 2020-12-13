@@ -1,4 +1,5 @@
 #include "AbstractSyntaxTree.h"
+#include "Driver.h"
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/IR/Type.h>
@@ -27,7 +28,8 @@ Value *LogErrorV(const string& Str) {
   return nullptr;
 }
 
-Value *NumberExprAST::codegen(LLVMContext& TheContext,
+Value *NumberExprAST::codegen(Driver& TheDriver,
+                              LLVMContext& TheContext,
                               IRBuilder<>& Builder,
                               Module& TheModule,
                               map<string, Value*>& NamedValues) {
@@ -36,7 +38,8 @@ Value *NumberExprAST::codegen(LLVMContext& TheContext,
   return ConstantFP::get(TheContext, APFloat(mValue));
 }
 
-Value *VariableExprAST::codegen(LLVMContext& TheContext,
+Value *VariableExprAST::codegen(Driver& TheDriver,
+                                LLVMContext& TheContext,
                                 IRBuilder<>& Builder,
                                 Module& TheModule,
                                 map<string, Value*>& NamedValues) {
@@ -46,12 +49,13 @@ Value *VariableExprAST::codegen(LLVMContext& TheContext,
   return V;
 }
 
-Value *BinaryExprAST::codegen(LLVMContext& TheContext,
+Value *BinaryExprAST::codegen(Driver& TheDriver,
+                              LLVMContext& TheContext,
                               IRBuilder<>& Builder,
                               Module& TheModule,
                               map<string, Value*>& NamedValues) {
-  Value *L = mLHS->codegen(TheContext, Builder, TheModule, NamedValues);
-  Value *R = mRHS->codegen(TheContext, Builder, TheModule, NamedValues);
+  Value *L = mLHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  Value *R = mRHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
   if (!L || !R)
     return nullptr;
   if (mOperator == "+") {
@@ -63,7 +67,7 @@ Value *BinaryExprAST::codegen(LLVMContext& TheContext,
   } else if (mOperator == "/") {
     return Builder.CreateFDiv(L, R, "divtmp");
   } else if (mOperator == "^") {
-    Function *CallPow = TheModule.getFunction("pow");
+    Function *CallPow = TheDriver.getFunction("pow");
     if (!CallPow)
       return LogErrorV("unknown function referenced");
     if (CallPow->arg_size() != 2) {
@@ -79,12 +83,13 @@ Value *BinaryExprAST::codegen(LLVMContext& TheContext,
   }
 }
 
-Value *CallExprAST::codegen(LLVMContext& TheContext,
+Value *CallExprAST::codegen(Driver& TheDriver,
+                            LLVMContext& TheContext,
                             IRBuilder<>& Builder,
                             Module& TheModule,
                             map<string, Value*>& NamedValues) {
   // Look up the name in the global module table.
-  Function *CalleeF = TheModule.getFunction(mCallee);
+  Function *CalleeF = TheDriver.getFunction(mCallee);
   if (!CalleeF)
     return LogErrorV("unknown function referenced");
   // If argument mismatch error.
@@ -92,7 +97,7 @@ Value *CallExprAST::codegen(LLVMContext& TheContext,
     return LogErrorV("incorrect # arguments passed");
   vector<Value *> ArgsV;
   for (unsigned i = 0, e = mArguments.size(); i != e; ++i) {
-    ArgsV.push_back(mArguments[i]->codegen(TheContext, Builder, TheModule, NamedValues));
+    ArgsV.push_back(mArguments[i]->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues));
     if (!ArgsV.back())
       return nullptr;
   }
@@ -103,7 +108,8 @@ string PrototypeAST::getName() const {
   return this->mName;
 }
 
-Function *PrototypeAST::codegen(LLVMContext& TheContext,
+Function *PrototypeAST::codegen(Driver& TheDriver,
+                                LLVMContext& TheContext,
                                 IRBuilder<>& Builder,
                                 Module& TheModule,
                                 map<string, Value*>& NamedValues) {
@@ -129,21 +135,24 @@ Function *PrototypeAST::codegen(LLVMContext& TheContext,
   return F;
 }
 
-Function *FunctionAST::codegen(LLVMContext& TheContext,
+Function *FunctionAST::codegen(Driver& TheDriver,
+                               LLVMContext& TheContext,
                                IRBuilder<>& Builder,
                                Module& TheModule,
                                FunctionPassManager& FPM,
                                map<string, Value*>& NamedValues) {
   using llvm::Function;
   using llvm::BasicBlock;
+  auto &P = *mPrototype;
+  TheDriver.mFunctionProtos[mPrototype->getName()] = move(mPrototype);
   // First, check for an existing function from a previous 'extern' declaration.
-  Function *TheFunction = TheModule.getFunction(mPrototype->getName());
-  if (!TheFunction)
-    TheFunction = mPrototype->codegen(TheContext, Builder, TheModule, NamedValues);
+  Function *TheFunction = TheDriver.getFunction(P.getName());
+//   if (!TheFunction)
+//     TheFunction = mPrototype->codegen(TheContext, Builder, TheModule, NamedValues);
   if (!TheFunction)
     return nullptr;
-  if (!TheFunction->empty())
-    return (Function*)LogErrorV("Function cannot be redefined.");
+//   if (!TheFunction->empty())
+//     return (Function*)LogErrorV("Function cannot be redefined.");
   // Create a new basic block to start insertion into.
   BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
   Builder.SetInsertPoint(BB);
@@ -152,7 +161,7 @@ Function *FunctionAST::codegen(LLVMContext& TheContext,
   NamedValues.clear();
   for (auto &Arg : TheFunction->args())
     NamedValues[std::string(Arg.getName())] = &Arg;
-  if (Value *RetVal = mBody->codegen(TheContext, Builder, TheModule, NamedValues)) {
+  if (Value *RetVal = mBody->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues)) {
     // Finish off the function.
     Builder.CreateRet(RetVal);
     // Validate the generated code, checking for consistency.
@@ -261,8 +270,8 @@ unique_ptr<ExprAST> CallExprAST::Derivative(const string& Variable) const {
   return nullptr;
 }
 
-unique_ptr<FunctionAST> FunctionAST::Derivative(const string& Variable) const {
+unique_ptr<FunctionAST> FunctionAST::Derivative(const string& Variable, const string& FunctionName) const {
   auto Derivative = mBody->Derivative(Variable);
-  auto DerivativePrototype = make_unique<PrototypeAST>("", mPrototype->getArgumentNames());
+  auto DerivativePrototype = make_unique<PrototypeAST>(FunctionName, mPrototype->getArgumentNames());
   return make_unique<FunctionAST>(move(DerivativePrototype), move(Derivative));
 }

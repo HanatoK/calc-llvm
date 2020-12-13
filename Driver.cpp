@@ -18,7 +18,10 @@ Driver::Driver(const Parser& p):
 
 void Driver::HandleTopLevelExpression() {
   if (auto FnAST = mParser.ParseTopLevelExpr()) {
-    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+#ifdef TRAVERSE_AST
+    traverseAST(FnAST->clone().get());
+#endif
+    if (auto *FnIR = FnAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
       std::cerr << "Read a top-level expr:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
@@ -34,10 +37,9 @@ void Driver::HandleTopLevelExpression() {
       // Delete the anonymous expression module from the JIT.
       mJIT->removeModule(H);
     }
-    traverseAST(FnAST->clone().get());
     // TODO: read from a symbol table to replace the hard-coded "x"
-//     if (auto FnDerivAST = FnAST->Derivative("x")) {
-//       if (auto *FnDerivIR = FnDerivAST->codegen(mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+//     if (auto FnDerivAST = FnAST->Derivative("x", "_deriv")) {
+//       if (auto *FnDerivIR = FnDerivAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
 //         std::cerr << "Derivative function IR:\n";
 //         FnDerivIR->print(llvm::errs());
 //         std::cerr << std::endl;
@@ -52,14 +54,33 @@ void Driver::HandleTopLevelExpression() {
 
 void Driver::HandleDefinition() {
   if (auto FnAST = mParser.ParseDefinition()) {
-    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+    // FIXME: after codegen this the function name and arg names are not available!!
+    auto FnAST_backup = FnAST->clone();
+#ifdef TRAVERSE_AST
+    traverseAST(FnAST_backup.get());
+#endif
+    if (auto *FnIR = FnAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
       std::cerr << "Read function definition:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
       auto H = mJIT->addModule(move(mModule));
       InitializeModuleAndPassManager();
+      // JIT all derivatives
+      const string FunctionName = FnAST_backup->getName();
+      const vector<string> ArgNames = FnAST_backup->getArgumentNames();
+      for (const auto& ArgName : ArgNames) {
+        const string DerivativeName = "d" + FunctionName + "_d" + ArgName;
+        if (auto FnDerivAST = FnAST_backup->Derivative(ArgName, DerivativeName)) {
+          if (auto *FnDerivIR = FnDerivAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+            std::cerr << "Derivative function " + DerivativeName + " IR:\n";
+            FnDerivIR->print(llvm::errs());
+            std::cerr << std::endl;
+            auto H = mJIT->addModule(move(mModule));
+            InitializeModuleAndPassManager();
+          }
+        }
+      }
     }
-    traverseAST(FnAST.get());
   } else {
     mParser.getNextToken();
   }
@@ -67,11 +88,13 @@ void Driver::HandleDefinition() {
 
 void Driver::HandleExtern() {
   if (auto ProtoAST = mParser.ParseExtern()) {
-    if (auto *ProtoIR = ProtoAST->codegen(mContext, mBuilder, *mModule, mNamedValues)) {
+    if (auto *ProtoIR = ProtoAST->codegen(*this, mContext, mBuilder, *mModule, mNamedValues)) {
       std::cerr << "Read extern:\n";
       ProtoIR->print(llvm::errs());
       std::cerr << std::endl;
+#ifdef TRAVERSE_AST
       traverseAST(ProtoAST.get());
+#endif
       mFunctionProtos[ProtoAST->getName()] = move(ProtoAST);
     }
   } else {
@@ -82,7 +105,9 @@ void Driver::HandleExtern() {
 void Driver::MainLoop() {
 //   mParser.getNextToken();
   bool firsttime = true;
+#ifdef DEBUG_DRIVER
   mParser.PrintCurrentToken();
+#endif
   while (true) {
     std::cerr << "ready> ";
     std::string line;
@@ -96,12 +121,16 @@ void Driver::MainLoop() {
       mParser.SetupInput(line);
       mParser.getNextToken();
     }
+#ifdef DEBUG_DRIVER
     std::cout << "Current buffer: " << mParser.getInputString() << std::endl;
+#endif
     mParser.PrintCurrentToken();
     switch (std::get<0>(mParser.getCurrentToken())) {
       case Token::Eof: {
+#ifdef DEBUG_DRIVER
         std::cout << "Current string:\n";
         std::cout << mParser.getInputString() << std::endl;
+#endif
         return;
       }
       case Token::Semicolon:
@@ -223,4 +252,19 @@ void Driver::InitializeModuleAndPassManager() {
   mFPM->add(llvm::createCFGSimplificationPass());
 
   mFPM->doInitialization();
+}
+
+Function* Driver::getFunction(string Name) {
+  // First, see if the function has already been added to the current module.
+  if (auto *F = mModule->getFunction(Name)) {
+    return F;
+  }
+  // If not, check whether we can codegen the declaration from some existing
+  // prototype.
+  auto FI = mFunctionProtos.find(Name);
+  if (FI != mFunctionProtos.end()) {
+    return FI->second->codegen(*this, mContext, mBuilder, *mModule, mNamedValues);
+  }
+  // If no existing prototype exists, return null.
+  return nullptr;
 }

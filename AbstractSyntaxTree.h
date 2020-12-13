@@ -27,6 +27,7 @@ using llvm::Module;
 using llvm::Function;
 using llvm::legacy::FunctionPassManager;
 
+class Driver;
 class CallExprAST;
 class NumberExprAST;
 
@@ -37,7 +38,8 @@ public:
     return string{"ExprAST"};
   }
   virtual ~ExprAST() = default;
-  virtual Value *codegen(LLVMContext& TheContext,
+  virtual Value *codegen(Driver& TheDriver,
+                         LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues) = 0;
@@ -57,7 +59,8 @@ public:
     return mValue;
   }
   NumberExprAST(double Val): mValue(Val) {}
-  virtual Value *codegen(LLVMContext& TheContext,
+  virtual Value *codegen(Driver& TheDriver,
+                         LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
@@ -77,7 +80,8 @@ public:
     return mName;
   }
   VariableExprAST(const string& Name): mName(Name) {}
-  virtual Value *codegen(LLVMContext& TheContext,
+  virtual Value *codegen(Driver& TheDriver,
+                         LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
@@ -109,7 +113,8 @@ public:
   BinaryExprAST(const string& Op, unique_ptr<ExprAST> LHS,
                 unique_ptr<ExprAST> RHS)
     : mOperator{Op}, mLHS(move(LHS)), mRHS(move(RHS)) {}
-  virtual Value *codegen(LLVMContext& TheContext,
+  virtual Value *codegen(Driver& TheDriver,
+                         LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
@@ -153,7 +158,8 @@ public:
   }
   CallExprAST(const string& Callee, vector<unique_ptr<ExprAST>> Args)
     : mCallee(Callee), mArguments(move(Args)) {}
-  virtual Value *codegen(LLVMContext& TheContext,
+  virtual Value *codegen(Driver& TheDriver,
+                         LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
@@ -181,7 +187,8 @@ public:
   PrototypeAST(const string& Name, vector<string> Args)
     : mName(Name), mArguments(move(Args)) {}
   string getName() const;
-  Function *codegen(LLVMContext& TheContext,
+  Function *codegen(Driver& TheDriver,
+                    LLVMContext& TheContext,
                     IRBuilder<>& Builder,
                     Module& TheModule,
                     map<string, Value*>& NamedValues);
@@ -205,15 +212,22 @@ public:
     if (!mBody) return nullptr;
     return mBody.get();
   }
+  vector<string> getArgumentNames() const {
+    return mPrototype->getArgumentNames();
+  }
+  string getName() const {
+    return mPrototype->getName();
+  }
   FunctionAST(unique_ptr<PrototypeAST> Proto, unique_ptr<ExprAST> Body)
     : mPrototype(move(Proto)), mBody(move(Body)) {}
-  Function *codegen(LLVMContext& TheContext,
+  Function *codegen(Driver& TheDriver,
+                    LLVMContext& TheContext,
                     IRBuilder<>& Builder,
                     Module& TheModule,
                     FunctionPassManager& FPM,
                     map<string, Value*>& NamedValues);
   virtual unique_ptr<FunctionAST> clone() const;
-  virtual unique_ptr<FunctionAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<FunctionAST> Derivative(const string& Variable, const string& FunctionName) const;
 };
 
 unique_ptr<ExprAST> LogError(const string& Str);
