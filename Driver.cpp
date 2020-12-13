@@ -123,8 +123,8 @@ void Driver::MainLoop() {
     }
 #ifdef DEBUG_DRIVER
     std::cout << "Current buffer: " << mParser.getInputString() << std::endl;
-#endif
     mParser.PrintCurrentToken();
+#endif
     switch (std::get<0>(mParser.getCurrentToken())) {
       case Token::Eof: {
 #ifdef DEBUG_DRIVER
@@ -146,8 +146,10 @@ void Driver::MainLoop() {
         HandleTopLevelExpression();
         break;
     }
+#ifdef DEBUG_DRIVER
 //     std::cout << "switch end: ";
     mParser.PrintCurrentToken();
+#endif
   }
 }
 
