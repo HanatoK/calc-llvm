@@ -346,7 +346,7 @@ unique_ptr<FunctionAST> Parser::ParseDefinition() {
 unique_ptr<FunctionAST> Parser::ParseTopLevelExpr() {
   if (auto E = ParseExpression()) {
     // Make an anonymous proto.
-    auto Proto = make_unique<PrototypeAST>("", vector<string>());
+    auto Proto = make_unique<PrototypeAST>("__anon_expr", vector<string>());
     return make_unique<FunctionAST>(move(Proto), move(E));
   }
   return nullptr;

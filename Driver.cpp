@@ -12,7 +12,7 @@ Driver::Driver(const Parser& p):
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
-  mJIT = move(MainJIT::Create().get());
+  mJIT = make_unique<KaleidoscopeJIT>();
   InitializeModuleAndPassManager();
 }
 
@@ -22,13 +22,17 @@ void Driver::HandleTopLevelExpression() {
       std::cerr << "Read a top-level expr:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
+      // JIT the module containing the anonymous expression, keeping a handle so
+      // we can free it later.
       auto H = mJIT->addModule(move(mModule));
-      if (H.success()) {
-        InitializeModuleAndPassManager();
-      } else {
-//         std::cerr << H << std::endl;
-        std::cerr << "Failed to add module in HandleTopLevelExpression()!\n";
-      }
+      InitializeModuleAndPassManager();
+      // Search the JIT for the __anon_expr symbol.
+      auto ExprSymbol = mJIT->findSymbol("__anon_expr");
+      assert(ExprSymbol && "Function not found");
+      double (*FP)() = (double (*)())(intptr_t)llvm::cantFail(ExprSymbol.getAddress());
+      std::cout << "Evaluated to " << FP() << std::endl;
+      // Delete the anonymous expression module from the JIT.
+      mJIT->removeModule(H);
     }
     traverseAST(FnAST->clone().get());
     // TODO: read from a symbol table to replace the hard-coded "x"
@@ -53,11 +57,7 @@ void Driver::HandleDefinition() {
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
       auto H = mJIT->addModule(move(mModule));
-      if (H.success()) {
-        InitializeModuleAndPassManager();
-      } else {
-        std::cerr << "Failed to add module HandleDefinition()!\n";
-      }
+      InitializeModuleAndPassManager();
     }
     traverseAST(FnAST.get());
   } else {
@@ -67,13 +67,13 @@ void Driver::HandleDefinition() {
 
 void Driver::HandleExtern() {
   if (auto ProtoAST = mParser.ParseExtern()) {
-    if (auto *FnIR = ProtoAST->codegen(mContext, mBuilder, *mModule, mNamedValues)) {
+    if (auto *ProtoIR = ProtoAST->codegen(mContext, mBuilder, *mModule, mNamedValues)) {
       std::cerr << "Read extern:\n";
-      FnIR->print(llvm::errs());
+      ProtoIR->print(llvm::errs());
       std::cerr << std::endl;
+      traverseAST(ProtoAST.get());
       mFunctionProtos[ProtoAST->getName()] = move(ProtoAST);
     }
-    traverseAST(ProtoAST.get());
   } else {
     mParser.getNextToken();
   }

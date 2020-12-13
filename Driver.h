@@ -12,7 +12,7 @@
 #include <tuple>
 
 #include "Parser.h"
-#include "MainJIT.h"
+#include "KaleidoscopeJIT.h"
 
 using std::map;
 using std::string;
@@ -24,7 +24,7 @@ using llvm::IRBuilder;
 using llvm::Module;
 using llvm::Value;
 using llvm::legacy::FunctionPassManager;
-using llvm::orc::MainJIT;
+using llvm::orc::KaleidoscopeJIT;
 
 class Driver {
 public:
@@ -43,7 +43,7 @@ private:
   IRBuilder<> mBuilder;
   unique_ptr<Module> mModule;
   unique_ptr<FunctionPassManager> mFPM;
-  unique_ptr<MainJIT> mJIT;
+  unique_ptr<KaleidoscopeJIT> mJIT;
   map<string, Value*> mNamedValues;
   map<string, unique_ptr<PrototypeAST>> mFunctionProtos;
 };
