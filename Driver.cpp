@@ -2,43 +2,45 @@
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Support/TargetSelect.h>
 #include <cmath>
 
 // #define DEBUG_DRIVER
 
 Driver::Driver(const Parser& p):
-  mParser(p), mContext(), mBuilder(mContext), mModule("calculator", mContext),
-  mFPM(&mModule) {
-  // Do simple "peephole" optimizations and bit-twiddling optzns.
-  mFPM.add(llvm::createInstructionCombiningPass());
-  // Reassociate expressions.
-  mFPM.add(llvm::createReassociatePass());
-  // Eliminate Common SubExpressions.
-  mFPM.add(llvm::createGVNPass());
-  // Simplify the control flow graph (deleting unreachable blocks, etc).
-  mFPM.add(llvm::createCFGSimplificationPass());
-
-  mFPM.doInitialization();
+  mParser(p), mContext(), mBuilder(mContext) {
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
+  llvm::InitializeNativeTargetAsmParser();
+  mJIT = move(MainJIT::Create().get());
+  InitializeModuleAndPassManager();
 }
 
 void Driver::HandleTopLevelExpression() {
   if (auto FnAST = mParser.ParseTopLevelExpr()) {
-    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mFPM, mNamedValues)) {
+    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
       std::cerr << "Read a top-level expr:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
+      auto H = mJIT->addModule(move(mModule));
+      if (H.success()) {
+        InitializeModuleAndPassManager();
+      } else {
+//         std::cerr << H << std::endl;
+        std::cerr << "Failed to add module in HandleTopLevelExpression()!\n";
+      }
     }
     traverseAST(FnAST->clone().get());
     // TODO: read from a symbol table to replace the hard-coded "x"
-    if (auto FnDerivAST = FnAST->Derivative("x")) {
-      if (auto *FnDerivIR = FnDerivAST->codegen(mContext, mBuilder, mModule, mFPM, mNamedValues)) {
-        std::cerr << "Derivative function IR:\n";
-        FnDerivIR->print(llvm::errs());
-        std::cerr << std::endl;
-      }
-      std::cout << "Traverse the derivative:\n";
-      traverseAST(FnDerivAST.get());
-    }
+//     if (auto FnDerivAST = FnAST->Derivative("x")) {
+//       if (auto *FnDerivIR = FnDerivAST->codegen(mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+//         std::cerr << "Derivative function IR:\n";
+//         FnDerivIR->print(llvm::errs());
+//         std::cerr << std::endl;
+//       }
+//       std::cout << "Traverse the derivative:\n";
+//       traverseAST(FnDerivAST.get());
+//     }
   } else {
     mParser.getNextToken();
   }
@@ -46,10 +48,16 @@ void Driver::HandleTopLevelExpression() {
 
 void Driver::HandleDefinition() {
   if (auto FnAST = mParser.ParseDefinition()) {
-    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mFPM, mNamedValues)) {
+    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
       std::cerr << "Read function definition:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
+      auto H = mJIT->addModule(move(mModule));
+      if (H.success()) {
+        InitializeModuleAndPassManager();
+      } else {
+        std::cerr << "Failed to add module HandleDefinition()!\n";
+      }
     }
     traverseAST(FnAST.get());
   } else {
@@ -58,13 +66,14 @@ void Driver::HandleDefinition() {
 }
 
 void Driver::HandleExtern() {
-  if (auto FnAST = mParser.ParseExtern()) {
-    if (auto *FnIR = FnAST->codegen(mContext, mBuilder, mModule, mNamedValues)) {
+  if (auto ProtoAST = mParser.ParseExtern()) {
+    if (auto *FnIR = ProtoAST->codegen(mContext, mBuilder, *mModule, mNamedValues)) {
       std::cerr << "Read extern:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
+      mFunctionProtos[ProtoAST->getName()] = move(ProtoAST);
     }
-    traverseAST(FnAST.get());
+    traverseAST(ProtoAST.get());
   } else {
     mParser.getNextToken();
   }
@@ -198,4 +207,20 @@ void Driver::traverseAST(const FunctionAST* Node) const {
 #endif
   const auto [ResName, result] = traverseAST(Node->getBody());
   std::cout << "Result = " << result << std::endl;
+}
+
+void Driver::InitializeModuleAndPassManager() {
+  mModule = make_unique<Module>("calculator", mContext);
+  mFPM = make_unique<llvm::legacy::FunctionPassManager>(mModule.get());
+  
+  // Do simple "peephole" optimizations and bit-twiddling optzns.
+  mFPM->add(llvm::createInstructionCombiningPass());
+  // Reassociate expressions.
+  mFPM->add(llvm::createReassociatePass());
+  // Eliminate Common SubExpressions.
+  mFPM->add(llvm::createGVNPass());
+  // Simplify the control flow graph (deleting unreachable blocks, etc).
+  mFPM->add(llvm::createCFGSimplificationPass());
+
+  mFPM->doInitialization();
 }

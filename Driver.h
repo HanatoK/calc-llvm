@@ -12,6 +12,7 @@
 #include <tuple>
 
 #include "Parser.h"
+#include "MainJIT.h"
 
 using std::map;
 using std::string;
@@ -23,6 +24,7 @@ using llvm::IRBuilder;
 using llvm::Module;
 using llvm::Value;
 using llvm::legacy::FunctionPassManager;
+using llvm::orc::MainJIT;
 
 class Driver {
 public:
@@ -34,13 +36,16 @@ public:
   tuple<string, double> traverseAST(const ExprAST* Node) const;
   void traverseAST(const PrototypeAST* Node) const;
   void traverseAST(const FunctionAST* Node) const;
+  void InitializeModuleAndPassManager();
 private:
   Parser mParser;
   LLVMContext mContext;
   IRBuilder<> mBuilder;
-  Module mModule;
-  FunctionPassManager mFPM;
+  unique_ptr<Module> mModule;
+  unique_ptr<FunctionPassManager> mFPM;
+  unique_ptr<MainJIT> mJIT;
   map<string, Value*> mNamedValues;
+  map<string, unique_ptr<PrototypeAST>> mFunctionProtos;
 };
 
 #endif // DRIVER_H
