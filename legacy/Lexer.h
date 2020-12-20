@@ -8,14 +8,12 @@
 #include <iostream>
 #include <tuple>
 #include <variant>
-#include <map>
 
 using std::tuple;
 using std::variant;
 using std::istream;
 using std::string;
 using std::make_tuple;
-using std::map;
 
 enum class Token {
   Eof = -1,
@@ -31,19 +29,14 @@ enum class Token {
   Unknown = -255,
 };
 
-const extern map<string, Token> keywords;
-
 class Lexer {
 public:
   Lexer();
-  Lexer(const string& input);
-  void AppendString(const string& input);
-  tuple<Token, variant<string, double>> getToken();
-  string str() const {return mInputString;}
+  void clearState();
+  tuple<Token, variant<string, double>> getAllToken(const string& str);
+  tuple<Token, variant<string, double>> getToken(istream& inputStream);
 private:
-  string mInputString;
-  size_t mCurrentPosition;
-  bool CurrentChar(char& c) const;
+  char mLastChar;
 };
 
 #endif // LEXER_H

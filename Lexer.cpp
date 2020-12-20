@@ -1,175 +1,124 @@
 #include "Lexer.h"
 
-Lexer::Lexer(): mLastChar(' ') {}
+const extern map<string, Token> keywords = {{"extern", Token::Extern},
+                                            {"def", Token::Definition}};
 
-void Lexer::clearState() {
-  mLastChar = ' ';
+Lexer::Lexer(): mInputString(""), mCurrentPosition(0) {}
+
+Lexer::Lexer(const string& input): Lexer() {
+  AppendString(input);
 }
 
-tuple<Token, variant<string, double>> Lexer::getAllToken(const string& str) {
-  clearState();
-  std::istringstream iss(str);
-  auto result = getToken(iss);
-  do {
-    switch (std::get<0>(result)) {
-      case Token::Eof: {
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      case Token::LeftParenthesis: {
-        std::cout << "Left parenthesis: ";
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      case Token::RightParenthesis: {
-        std::cout << "Right parenthesis: ";
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      case Token::Identifier: {
-        std::cout << "Identifier: ";
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      case Token::Number: {
-        std::cout << "Number: ";
-        std::cout << std::get<double>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      case Token::Operator: {
-        std::cout << "Operator: ";
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      case Token::Comma: {
-        std::cout << "Comma:";
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-      default: {
-        std::cout << "Unknown token: ";
-        std::cout << std::get<string>(std::get<1>(result)) << std::endl;
-        break;
-      }
-    }
-    result = getToken(iss);
-  } while (std::get<0>(result) != Token::Eof);
-  return result;
+void Lexer::AppendString(const string& input) {
+  mInputString.append(input);
 }
 
-tuple<Token, variant<string, double>> Lexer::getToken(istream& inputStream) {
-  if (inputStream.eof()) {
+bool Lexer::CurrentChar(char& c) const {
+  if (mCurrentPosition >= mInputString.size()) {
+    return false;
+  } else {
+    c = mInputString[mCurrentPosition];
+    return true;
+  }
+}
+
+tuple<Token, variant<string, double>> Lexer::getToken() {
+  char c = ' ';
+  if (mCurrentPosition >= mInputString.size()) {
     return make_tuple(Token::Eof, string{"EOF"});
   }
-  // skip any whitespace
-  while (std::isspace(mLastChar)) {
-    if (inputStream.get(mLastChar)) {
-      if (!std::isspace(mLastChar)) {
+  CurrentChar(c);
+  while (std::isspace(c)){
+    ++mCurrentPosition;
+    if (CurrentChar(c)) {
+      if (!std::isspace(c)) {
         // if we meet the first non-whitespace character, break the loop
         break;
       }
     } else {
       // EOF
-      return make_tuple(Token::Eof, string{mLastChar});
-      break;
+      return make_tuple(Token::Eof, string{c});
     }
   }
-  if (mLastChar == '(') {
-    const Token t = Token::LeftParenthesis;
-    const string result{mLastChar};
-    inputStream.get(mLastChar);
-    return make_tuple(t, result);
+  Token t;
+  string result{c};
+  bool match_in_switch = true;
+  switch (c) {
+    case '(': t = Token::LeftParenthesis; break;
+    case ')': t = Token::RightParenthesis; break;
+    case ',': t = Token::Comma; break;
+    case ';': t = Token::Semicolon; break;
+    case '*': t = Token::Operator; break;
+    case '/': t = Token::Operator; break;
+    case '+': t = Token::Operator; break;
+    case '-': t = Token::Operator; break;
+    case '^': t = Token::Operator; break;
+    default: match_in_switch = false; // may be a digit or alphabet
   }
-  if (mLastChar == ')') {
-    const Token t = Token::RightParenthesis;
-    const string result{mLastChar};
-    inputStream.get(mLastChar);
+  if (match_in_switch) {
+    ++mCurrentPosition;
+    CurrentChar(c);
     return make_tuple(t, result);
-  }
-  if (mLastChar == ',') {
-    const Token t = Token::Comma;
-    const string result{mLastChar};
-    inputStream.get(mLastChar);
-    return make_tuple(t, result);
-  }
-  if (mLastChar == ';') {
-    const Token t = Token::Semicolon;
-    const string result{mLastChar};
-    inputStream.get(mLastChar);
-    return make_tuple(t, result);
-  }
-  // [_a-zA-Z][_a-zA-Z0-9]*
-  if (std::isalpha(mLastChar) || mLastChar == '_') {
-    string result{mLastChar};
-    while (std::isalnum(mLastChar) || mLastChar == '_') {
-      if (inputStream.get(mLastChar)) {
-        if (std::isalnum(mLastChar) || mLastChar == '_') {
-          result += mLastChar;
+  } else {
+    // check identifier [_a-zA-Z][_a-zA-Z0-9]*
+    if (std::isalpha(c) || c == '_') {
+      do {
+        ++mCurrentPosition;
+        if (CurrentChar(c)) {
+          if (std::isalnum(c) || c == '_') result += c;
+          else break;
         } else {
           break;
         }
+      } while (true);
+      const auto find_result = keywords.find(result);
+      if (find_result != keywords.end()) {
+        return make_tuple(find_result->second, result);
       } else {
-        break;
+        return make_tuple(Token::Identifier, result);
       }
-    }
-    if (result == "extern") {
-      return make_tuple(Token::Extern, result);
-    } else if (result == "def") {
-      return make_tuple(Token::Definition, result);
+    } else if (std::isdigit(c) || c == '.') {
+      t = Token::Number;
+      int num_e = 0;
+      int num_dot = (c == '.') ? 1 : 0;
+      int num_digit = (std::isdigit(c)) ? 1 : 0;
+      ++mCurrentPosition;
+      while (CurrentChar(c)) {
+        if (c == 'e' || c == 'E') {
+          // check if this is an 'e'
+          if (num_digit >= 1) {
+            result += c;
+            ++num_e;
+          } else {
+            t = Token::Unknown;
+            break;
+          }
+        } else if (std::isdigit(c)) {
+          ++num_digit;
+          result += c;
+        } else if (c == '.') {
+          ++num_dot;
+          result += c;
+        } else {
+          if (num_e == 1 && (c == '+' || c == '-')) {
+            // 'e' can only appear once
+            result += c;
+          } else {
+            break;
+          }
+        }
+        ++mCurrentPosition;
+      }
+      try {
+        const double number = std::stod(result);
+        return make_tuple(t, number);
+      } catch (std::exception& e) {
+        std::cerr << e.what() << '\n';
+        return make_tuple(t, 0.0);
+      }
     } else {
-      return make_tuple(Token::Identifier, result);
+      ++mCurrentPosition;
     }
+    return make_tuple(Token::Unknown, result);
   }
-  // operators
-  if (mLastChar == '*' || mLastChar == '/' || mLastChar == '-' ||
-      mLastChar == '+' || mLastChar == '^') {
-    const Token t = Token::Operator;
-    const string result{mLastChar};
-    inputStream.get(mLastChar);
-    return make_tuple(t, result);
-  }
-  // numbers
-  if (std::isdigit(mLastChar) || mLastChar == '.') {
-    const Token t = Token::Number;
-    string NumStr{mLastChar};
-    int num_e = 0;
-    int num_dot = (mLastChar == '.') ? 1 : 0;
-    int num_digit = (std::isdigit(mLastChar)) ? 1 : 0;
-    while (inputStream.get(mLastChar)) {
-      if (mLastChar == 'e' || mLastChar == 'E') {
-        // check if this is an 'e'
-        if (num_digit >= 1) {
-          // any 'e' must appear after at least a number
-          NumStr += mLastChar;
-          ++num_e;
-        } else {
-          // TODO: what will happen here?
-        }
-      } else if (std::isdigit(mLastChar)) {
-        if (num_e > 0) --num_e;
-        ++num_digit;
-        NumStr += mLastChar;
-      } else if (mLastChar == '.') {
-        NumStr += mLastChar;
-        ++num_dot;
-      } else {
-        if (num_e > 0 && (mLastChar == '+' || mLastChar == '-')) {
-          NumStr += mLastChar;
-          // 'e' should only appear once,
-          // so this branch should only run once
-          --num_e;
-        } else {
-          break;
-        }
-      }
-    }
-    try {
-      const double number = std::stod(NumStr);
-      return make_tuple(t, number);
-    } catch (std::exception& e) {
-      std::cerr << e.what() << '\n';
-      return make_tuple(t, 0.0);
-    }
-  }
-  return make_tuple(Token::Unknown, string{mLastChar});
 }

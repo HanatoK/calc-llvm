@@ -22,9 +22,11 @@ using std::make_unique;
 
 class Parser {
 public:
+  static map<string, int> mBinaryOpPrecedence;
+  static map<string, bool> mRightAssociative;
+  static map<string, int> mUnaryOpPrecedence;
   Parser();
   Parser(const string& Str);
-  Parser(const Parser& p);
   void SetupInput(const string& Str);
   void AppendString(const string& Str);
   string getInputString() const;
@@ -46,14 +48,12 @@ public:
   unique_ptr<FunctionAST> ParseTopLevelExpr();
   unique_ptr<PrototypeAST> ParseExtern();
 private:
-  void SetupPrecedence();
-  map<string, int> mBinaryOpPrecedence;
-  map<string, bool> mRightAssociative;
-  map<string, int> mUnaryOpPrecedence;
-  string mInputString;
-  stringstream mInputStream;
   tuple<Token, variant<string, double>> mCurrentToken;
   Lexer mLexer;
 };
+
+// extern map<string, int> Parser::mBinaryOpPrecedence;
+// extern map<string, bool> Parser::mRightAssociative;
+// extern map<string, int> Parser::mUnaryOpPrecedence;
 
 #endif // PARSER_H

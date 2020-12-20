@@ -10,51 +10,37 @@ using std::vector;
 
 // #define DEBUG_PARSER
 
-Parser::Parser():
-  mInputStream(std::ios_base::ate | std::ios_base::in | std::ios_base::out) {
-  SetupPrecedence();
-}
+map<string, int> Parser::mBinaryOpPrecedence = {{"+", 100},
+                                                {"-", 100},
+                                                {"*", 200},
+                                                {"/", 200},
+                                                {"^", 300}};
 
-Parser::Parser(const string& Str):
-  mInputStream(std::ios_base::ate | std::ios_base::in | std::ios_base::out) {
-  SetupPrecedence();
+map<string, int> Parser::mUnaryOpPrecedence = {{"+", 250},
+                                               {"-", 250}};
+
+map<string, bool> Parser::mRightAssociative = {{"+", false},
+                                               {"-", false},
+                                               {"*", false},
+                                               {"/", false},
+                                               {"^", true}};
+
+Parser::Parser() {}
+
+Parser::Parser(const string& Str) {
   SetupInput(Str);
 }
 
-Parser::Parser(const Parser& p):
-  mInputStream(std::ios_base::ate | std::ios_base::in | std::ios_base::out) {
-  this->SetupPrecedence();
-  this->SetupInput(p.getInputString());
-}
-
 void Parser::AppendString(const string& Str) {
-  mInputStream << Str;
+  mLexer.AppendString(Str);
 }
 
 void Parser::SetupInput(const string& Str) {
-  mInputString = Str;
-  mInputStream.clear();
-  mInputStream.str(Str);
-  mLexer.clearState();
+  mLexer = Lexer(Str);
 }
 
 string Parser::getInputString() const {
-  return mInputStream.str();
-}
-
-void Parser::SetupPrecedence() {
-  mBinaryOpPrecedence["+"] = 100;
-  mBinaryOpPrecedence["-"] = 100;
-  mBinaryOpPrecedence["*"] = 200;
-  mBinaryOpPrecedence["/"] = 200;
-  mBinaryOpPrecedence["^"] = 300;
-  mUnaryOpPrecedence["+"] = 250;
-  mUnaryOpPrecedence["-"] = 250;
-  mRightAssociative["+"] = false;
-  mRightAssociative["-"] = false;
-  mRightAssociative["*"] = false;
-  mRightAssociative["/"] = false;
-  mRightAssociative["^"] = true;
+  return mLexer.str();
 }
 
 int Parser::GetBinaryPrecedence(const string& Op) const {
@@ -85,7 +71,7 @@ bool Parser::IsRightAssociative(const string& Op) const {
 }
 
 tuple<Token, variant<string, double>> Parser::getNextToken() {
-  return mCurrentToken = mLexer.getToken(mInputStream);
+  return mCurrentToken = mLexer.getToken();
 }
 
 tuple<Token, variant<string, double>> Parser::getCurrentToken() const {
