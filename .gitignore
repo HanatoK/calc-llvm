@@ -2,3 +2,4 @@ a.out
 main
 build/
 cmake-build-debug/
+.idea/
