@@ -63,7 +63,7 @@ void Driver::HandleDefinition() {
       std::cerr << "Read function definition:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
-      auto H = mJIT->addModule(move(mModule));
+      mJIT->addModule(move(mModule));
       InitializeModuleAndPassManager();
       // JIT all derivatives
       const string FunctionName = FnAST_backup->getName();
@@ -75,7 +75,7 @@ void Driver::HandleDefinition() {
             std::cerr << "Derivative function " + DerivativeName + " IR:\n";
             FnDerivIR->print(llvm::errs());
             std::cerr << std::endl;
-            auto H = mJIT->addModule(move(mModule));
+            mJIT->addModule(move(mModule));
             InitializeModuleAndPassManager();
           }
         }
@@ -166,9 +166,9 @@ tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
 #endif
     const string ResName = "res" + std::to_string(index);
     std::cout << "Compute " << ResName << " = "
-              << static_cast<const NumberExprAST*>(Node)->getNumber() << std::endl;
+              << dynamic_cast<const NumberExprAST*>(Node)->getNumber() << std::endl;
     ++index;
-    return make_tuple(ResName, static_cast<const NumberExprAST*>(Node)->getNumber());
+    return make_tuple(ResName, dynamic_cast<const NumberExprAST*>(Node)->getNumber());
   } else if (Type == "VariableExprAST") {
 #ifdef DEBUG_DRIVER
     std::cout << "Visiting a " << Type << ": "
@@ -176,20 +176,20 @@ tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
 #endif
     const string ResName = "res" + std::to_string(index);
     std::cout << "Compute " << ResName << " = "
-              << static_cast<const VariableExprAST*>(Node)->getVariable() << std::endl;
+              << dynamic_cast<const VariableExprAST*>(Node)->getVariable() << std::endl;
     ++index;
     return make_tuple(ResName, 0.0);
   } else if (Type == "BinaryExprAST") {
-    const string Op = static_cast<const BinaryExprAST*>(Node)->getOperator();
+    const string Op = dynamic_cast<const BinaryExprAST*>(Node)->getOperator();
 #ifdef DEBUG_DRIVER
     std::cout << "Visiting a " << Type << ": " << Op << std::endl;
     std::cout << "Visiting the LHS: " << std::endl;
 #endif
-    const auto [ResNameL, ValL] = traverseAST(static_cast<const BinaryExprAST*>(Node)->getLHSExpr());
+    const auto [ResNameL, ValL] = traverseAST(dynamic_cast<const BinaryExprAST*>(Node)->getLHSExpr());
 #ifdef DEBUG_DRIVER
     std::cout << "Visiting the RHS: " << std::endl;
 #endif
-    const auto [ResNameR, ValR] = traverseAST(static_cast<const BinaryExprAST*>(Node)->getRHSExpr());
+    const auto [ResNameR, ValR] = traverseAST(dynamic_cast<const BinaryExprAST*>(Node)->getRHSExpr());
     double result = 0;
     if (Op == "+") {result = ValL + ValR;}
     else if (Op == "-") {result = ValL - ValR;}
@@ -209,8 +209,9 @@ tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
               << static_cast<const CallExprAST*>(Node)->getNumberOfArguments() << std::endl;
     std::cout << "Visiting the arguments:\n";
 #endif
-    vector<const ExprAST*> v = static_cast<const CallExprAST*>(Node)->getArguments();
+    vector<const ExprAST*> v = dynamic_cast<const CallExprAST*>(Node)->getArguments();
     vector<double> ArgumentResults;
+    ArgumentResults.reserve(v.size());
     for (const auto& i : v) {
       ArgumentResults.push_back(std::get<1>(traverseAST(i)));
     }
@@ -219,7 +220,7 @@ tuple<string, double> Driver::traverseAST(const ExprAST* Node) const {
   return make_tuple("", 0);
 }
 
-void Driver::traverseAST(const PrototypeAST* Node) const {
+void Driver::traverseAST(const PrototypeAST* Node) {
   const string Type = Node->Type();
 #ifdef DEBUG_DRIVER
   std::cout << "Visiting a " << Type << "\n";
@@ -256,7 +257,7 @@ void Driver::InitializeModuleAndPassManager() {
   mFPM->doInitialization();
 }
 
-Function* Driver::getFunction(string Name) {
+Function* Driver::getFunction(const string& Name) {
   // First, see if the function has already been added to the current module.
   if (auto *F = mModule->getFunction(Name)) {
     return F;

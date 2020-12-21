@@ -25,13 +25,13 @@ map<string, bool> Parser::mRightAssociative = {{"+", false},
                                                {"/", false},
                                                {"^", true}};
 
-Parser::Parser() {}
+Parser::Parser() = default;
 
 Parser::Parser(const string& Str) {
   SetupInput(Str);
 }
 
-void Parser::AppendString(const string& Str) {
+[[maybe_unused]] void Parser::AppendString(const string& Str) {
   mLexer.AppendString(Str);
 }
 
@@ -43,7 +43,7 @@ string Parser::getInputString() const {
   return mLexer.str();
 }
 
-int Parser::GetBinaryPrecedence(const string& Op) const {
+int Parser::GetBinaryPrecedence(const string& Op) {
   auto FindRes = mBinaryOpPrecedence.find(Op);
   if (FindRes != mBinaryOpPrecedence.end()) {
     return FindRes->second;
@@ -52,7 +52,7 @@ int Parser::GetBinaryPrecedence(const string& Op) const {
   }
 }
 
-int Parser::GetUnaryPrecedence(const string& Op) const {
+int Parser::GetUnaryPrecedence(const string& Op) {
   auto FindRes = mUnaryOpPrecedence.find(Op);
   if (FindRes != mUnaryOpPrecedence.end()) {
     return FindRes->second;
@@ -61,7 +61,7 @@ int Parser::GetUnaryPrecedence(const string& Op) const {
   }
 }
 
-bool Parser::IsRightAssociative(const string& Op) const {
+bool Parser::IsRightAssociative(const string& Op) {
   auto FindRes = mRightAssociative.find(Op);
   if (FindRes != mRightAssociative.end()) {
     return FindRes->second;
@@ -93,6 +93,9 @@ void Parser::PrintCurrentToken() const {
     case Token::Number: cout << "Number: " << get<double>(V); break;
     case Token::Operator: cout << "Operator: " << get<string>(V); break;
     case Token::Comma: cout << "Comma: " << get<string>(V); break;
+    case Token::Semicolon: cout << "Semicolon: " << get<string>(V); break;
+    case Token::Extern: cout << "Extern: " << get<string>(V); break;
+    case Token::Definition: cout << "Definition: " << get<string>(V); break;
     case Token::Unknown: cout << "Unknown: " << get<string>(V); break;
   }
   cout << endl;

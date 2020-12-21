@@ -39,7 +39,7 @@ public:
   Lexer(const string& input);
   void AppendString(const string& input);
   tuple<Token, variant<string, double>> getToken();
-  string str() const {return mInputString;}
+  [[nodiscard]] string str() const {return mInputString;}
 private:
   string mInputString;
   size_t mCurrentPosition;

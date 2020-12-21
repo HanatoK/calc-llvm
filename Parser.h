@@ -28,11 +28,12 @@ public:
   Parser();
   Parser(const string& Str);
   void SetupInput(const string& Str);
-  void AppendString(const string& Str);
+
+    [[maybe_unused]] void AppendString(const string& Str);
   string getInputString() const;
-  int GetBinaryPrecedence(const string& Op) const;
-  int GetUnaryPrecedence(const string& Op) const;
-  bool IsRightAssociative(const string& Op) const;
+  static int GetBinaryPrecedence(const string& Op) ;
+  static int GetUnaryPrecedence(const string& Op) ;
+  static bool IsRightAssociative(const string& Op) ;
   tuple<Token, variant<string, double>> getNextToken();
   tuple<Token, variant<string, double>> getCurrentToken() const;
   void PrintCurrentToken() const;

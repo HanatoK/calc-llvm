@@ -13,7 +13,7 @@ unique_ptr<ExprAST> LogError(const string& Str) {
   return nullptr;
 }
 
-unique_ptr<FunctionAST> LogErrorF(const string& Str) {
+[[maybe_unused]] unique_ptr<FunctionAST> LogErrorF(const string& Str) {
   std::cerr << Str << std::endl;
   return nullptr;
 }

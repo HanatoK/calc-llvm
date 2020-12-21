@@ -3,7 +3,7 @@
 const extern map<string, Token> keywords = {{"extern", Token::Extern},
                                             {"def", Token::Definition}};
 
-Lexer::Lexer(): mInputString(""), mCurrentPosition(0) {}
+Lexer::Lexer(): mCurrentPosition(0) {}
 
 Lexer::Lexer(const string& input): Lexer() {
   AppendString(input);
@@ -48,10 +48,10 @@ tuple<Token, variant<string, double>> Lexer::getToken() {
     case ')': t = Token::RightParenthesis; break;
     case ',': t = Token::Comma; break;
     case ';': t = Token::Semicolon; break;
-    case '*': t = Token::Operator; break;
-    case '/': t = Token::Operator; break;
-    case '+': t = Token::Operator; break;
-    case '-': t = Token::Operator; break;
+    case '*':
+    case '/':
+    case '+':
+    case '-':
     case '^': t = Token::Operator; break;
     default: match_in_switch = false; // may be a digit or alphabet
   }

@@ -34,10 +34,10 @@ public:
   void HandleDefinition();
   void MainLoop();
   tuple<string, double> traverseAST(const ExprAST* Node) const;
-  void traverseAST(const PrototypeAST* Node) const;
+  static void traverseAST(const PrototypeAST* Node) ;
   void traverseAST(const FunctionAST* Node) const;
   void InitializeModuleAndPassManager();
-  Function *getFunction(string Name);
+  Function *getFunction(const string& Name);
   map<string, unique_ptr<PrototypeAST>> mFunctionProtos; // BAD!!!
 private:
   Parser mParser;

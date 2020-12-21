@@ -79,7 +79,7 @@ public:
   string getVariable() const {
     return mName;
   }
-  VariableExprAST(const string& Name): mName(Name) {}
+  VariableExprAST(string  Name): mName(move(Name)) {}
   virtual Value *codegen(Driver& TheDriver,
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
@@ -110,9 +110,9 @@ public:
     if (!mRHS) return nullptr;
     return mRHS.get();
   }
-  BinaryExprAST(const string& Op, unique_ptr<ExprAST> LHS,
+  BinaryExprAST(string  Op, unique_ptr<ExprAST> LHS,
                 unique_ptr<ExprAST> RHS)
-    : mOperator{Op}, mLHS(move(LHS)), mRHS(move(RHS)) {}
+    : mOperator{move(Op)}, mLHS(move(LHS)), mRHS(move(RHS)) {}
   virtual Value *codegen(Driver& TheDriver,
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
@@ -156,8 +156,8 @@ public:
     }
     return result;
   }
-  CallExprAST(const string& Callee, vector<unique_ptr<ExprAST>> Args)
-    : mCallee(Callee), mArguments(move(Args)) {}
+  CallExprAST(string  Callee, vector<unique_ptr<ExprAST>> Args)
+    : mCallee(move(Callee)), mArguments(move(Args)) {}
   virtual Value *codegen(Driver& TheDriver,
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
@@ -184,8 +184,8 @@ public:
   vector<string> getArgumentNames() const {
     return mArguments;
   }
-  PrototypeAST(const string& Name, vector<string> Args)
-    : mName(Name), mArguments(move(Args)) {}
+  PrototypeAST(string  Name, vector<string> Args)
+    : mName(move(Name)), mArguments(move(Args)) {}
   string getName() const;
   Function *codegen(Driver& TheDriver,
                     LLVMContext& TheContext,
@@ -231,7 +231,8 @@ public:
 };
 
 unique_ptr<ExprAST> LogError(const string& Str);
-unique_ptr<FunctionAST> LogErrorF(const string& Str);
+
+[[maybe_unused]] unique_ptr<FunctionAST> LogErrorF(const string& Str);
 unique_ptr<PrototypeAST> LogErrorP(const string& Str);
 Value *LogErrorV(const string& Str);
 
