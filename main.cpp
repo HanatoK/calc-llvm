@@ -1,4 +1,3 @@
-#include "AbstractSyntaxTree.h"
 #include "Lexer.h"
 #include "Parser.h"
 #include "Version.h"

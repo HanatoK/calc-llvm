@@ -185,6 +185,8 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
         return LogError(ErrorMsg);
       }
     }
+    case Token::If:
+      return ParseIfExpr();
   }
 #ifdef DEBUG_PARSER
   std::cout << "End of ParsePrimary()\n";
@@ -344,4 +346,27 @@ unique_ptr<FunctionAST> Parser::ParseTopLevelExpr() {
 unique_ptr<PrototypeAST> Parser::ParseExtern() {
   getNextToken(); // eat extern.
   return ParsePrototype();
+}
+
+unique_ptr<ExprAST> Parser::ParseIfExpr() {
+  using std::get;
+  getNextToken(); // eat the if.
+  auto Cond = ParseExpression();
+  if (!Cond)
+    return nullptr;
+  Token t = get<0>(mCurrentToken);
+  if (t != Token::Then)
+    return LogError("expected then");
+  getNextToken(); // eat the then
+  auto Then = ParseExpression();
+  if (!Then)
+    return nullptr;
+  t = get<0>(mCurrentToken);
+  if (t != Token::Else)
+    return LogError("expected else");
+  getNextToken(); // eat the else.
+  auto Else = ParseExpression();
+  if (!Else)
+    return nullptr;
+  return make_unique<IfExprAST>(move(Cond), move(Then), move(Else));
 }

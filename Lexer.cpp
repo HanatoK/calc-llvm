@@ -1,7 +1,10 @@
 #include "Lexer.h"
 
 const extern map<string, Token> keywords = {{"extern", Token::Extern},
-                                            {"def", Token::Definition}};
+                                            {"def", Token::Definition},
+                                            {"if", Token::If},
+                                            {"then", Token::Then},
+                                            {"else", Token::Else}};
 
 Lexer::Lexer(): mCurrentPosition(0) {}
 

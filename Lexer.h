@@ -28,6 +28,9 @@ enum class Token {
   Definition = -8,
   Extern = -9,
   Semicolon = -10,
+  If = -11,
+  Then = -12,
+  Else = -13,
   Unknown = -255,
 };
 

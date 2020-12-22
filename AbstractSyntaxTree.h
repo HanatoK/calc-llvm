@@ -47,6 +47,26 @@ public:
   virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
 };
 
+/// IfExprAST - Expression class for if/then/else.
+class IfExprAST: public ExprAST {
+private:
+  unique_ptr<ExprAST> mCond;
+  unique_ptr<ExprAST> mThen;
+  unique_ptr<ExprAST> mElse;
+public:
+  IfExprAST(unique_ptr<ExprAST> Cond, unique_ptr<ExprAST> Then,
+            unique_ptr<ExprAST> Else)
+    : mCond(move(Cond)), mThen(move(Then)), mElse(move(Else)) {}
+  virtual string Type() const {
+    return string{"IfExprAST"};
+  }
+  virtual Value *codegen(Driver& TheDriver, LLVMContext& TheContext,
+                         IRBuilder<>& Builder, Module& TheModule,
+                         map<string, Value*>& NamedValues);
+  virtual unique_ptr<ExprAST> clone() const;
+  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+};
+
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST: public ExprAST {
 private:

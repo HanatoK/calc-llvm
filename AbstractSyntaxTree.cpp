@@ -275,3 +275,59 @@ unique_ptr<FunctionAST> FunctionAST::Derivative(const string& Variable, const st
   auto DerivativePrototype = make_unique<PrototypeAST>(FunctionName, mPrototype->getArgumentNames());
   return make_unique<FunctionAST>(move(DerivativePrototype), move(Derivative));
 }
+
+unique_ptr<ExprAST> IfExprAST::clone() const {
+  return make_unique<IfExprAST>(mCond->clone(), mThen->clone(), mElse->clone());
+}
+
+unique_ptr<ExprAST> IfExprAST::Derivative(const string &Variable) const {
+  auto DerivativeThen = mThen->Derivative(Variable);
+  auto DerivativeElse = mElse->Derivative(Variable);
+  return make_unique<IfExprAST>(mCond->clone(), move(DerivativeThen), move(DerivativeElse));
+}
+
+Value *IfExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder<> &Builder, Module &TheModule,
+                          map<string, Value *> &NamedValues) {
+  using llvm::PHINode;
+  using llvm::BasicBlock;
+  using llvm::ConstantFP;
+  using llvm::APFloat;
+  Value *CondV = mCond->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!CondV)
+    return nullptr;
+  // Convert condition to a bool by comparing non-equal to 0.0.
+  CondV = Builder.CreateFCmpONE(CondV, ConstantFP::get(TheContext, APFloat(0.0)), "ifcond");
+  // Get the current function object
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  // Create blocks for the then and else cases.  Insert the 'then' block at the
+  // end of TheFunction.
+  BasicBlock *ThenBB = BasicBlock::Create(TheContext, "then", TheFunction);
+  BasicBlock *ElseBB = BasicBlock::Create(TheContext, "else");
+  BasicBlock *MergeBB = BasicBlock::Create(TheContext, "ifcont");
+  Builder.CreateCondBr(CondV, ThenBB, ElseBB);
+  // change the insert point to the end of ThenBB
+  Builder.SetInsertPoint(ThenBB);
+  Value *ThenV = mThen->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!ThenV)
+    return nullptr;
+  // Create an unconditional branch to the merge block
+  Builder.CreateBr(MergeBB);
+  // Codegen of 'Then' can change the current block, update ThenBB for the PHI.
+  ThenBB = Builder.GetInsertBlock();
+  // Emit the else block.
+  TheFunction->getBasicBlockList().push_back(ElseBB);
+  Builder.SetInsertPoint(ElseBB);
+  Value *ElseV = mElse->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!ElseV)
+    return nullptr;
+  Builder.CreateBr(MergeBB);
+  // codegen of 'Else' can change the current block, update ElseBB for the PHI.
+  ElseBB = Builder.GetInsertBlock();
+  // Emit merge block.
+  TheFunction->getBasicBlockList().push_back(MergeBB);
+  Builder.SetInsertPoint(MergeBB);
+  PHINode *PN = Builder.CreatePHI(llvm::Type::getDoubleTy(TheContext), 2, "iftmp");
+  PN->addIncoming(ThenV, ThenBB);
+  PN->addIncoming(ElseV, ElseBB);
+  return PN;
+}
