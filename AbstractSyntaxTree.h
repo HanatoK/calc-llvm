@@ -44,7 +44,8 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues) = 0;
   virtual unique_ptr<ExprAST> clone() const = 0;
-  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
 };
 
 /// IfExprAST - Expression class for if/then/else.
@@ -64,7 +65,8 @@ public:
                          IRBuilder<>& Builder, Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
-  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
 };
 
 /// NumberExprAST - Expression class for numeric literals like "1.0".
@@ -85,7 +87,8 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
-  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -106,7 +109,8 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
-  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
@@ -139,7 +143,8 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
-  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
 };
 
 /// UnaryExprAST - Expression class for a unary operator.
@@ -184,7 +189,8 @@ public:
                          Module& TheModule,
                          map<string, Value*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
-  virtual unique_ptr<ExprAST> Derivative(const string& Variable) const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -247,7 +253,9 @@ public:
                     FunctionPassManager& FPM,
                     map<string, Value*>& NamedValues);
   virtual unique_ptr<FunctionAST> clone() const;
-  virtual unique_ptr<FunctionAST> Derivative(const string& Variable, const string& FunctionName) const;
+  virtual unique_ptr<FunctionAST> Derivative(Driver& TheDriver,
+                                             const string& Variable,
+                                             const string& FunctionName) const;
 };
 
 unique_ptr<ExprAST> LogError(const string& Str);

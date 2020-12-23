@@ -10,6 +10,7 @@
 #include <string>
 #include <memory>
 #include <tuple>
+#include <vector>
 
 #include "Parser.h"
 #include "KaleidoscopeJIT.h"
@@ -18,6 +19,7 @@ using std::map;
 using std::string;
 using std::unique_ptr;
 using std::tuple;
+using std::vector;
 
 using llvm::LLVMContext;
 using llvm::IRBuilder;
@@ -38,7 +40,10 @@ public:
   void traverseAST(const FunctionAST* Node) const;
   void InitializeModuleAndPassManager();
   Function *getFunction(const string& Name);
-  map<string, unique_ptr<PrototypeAST>> mFunctionProtos; // BAD!!!
+  // currently I do not have a clear idea for avoiding this public maps...
+  // TODO: check the function signature!
+  map<string, unique_ptr<PrototypeAST>> mFunctionProtos;
+  map<string, unique_ptr<FunctionAST>> mDerivativeFunctions;
 private:
   Parser mParser;
   LLVMContext mContext;

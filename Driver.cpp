@@ -70,7 +70,8 @@ void Driver::HandleDefinition() {
       const vector<string> ArgNames = FnAST_backup->getArgumentNames();
       for (const auto& ArgName : ArgNames) {
         const string DerivativeName = "d" + FunctionName + "_d" + ArgName;
-        if (auto FnDerivAST = FnAST_backup->Derivative(ArgName, DerivativeName)) {
+        if (auto FnDerivAST = FnAST_backup->Derivative(*this, ArgName, DerivativeName)) {
+          auto FnDerivAST_backup = FnDerivAST->clone();
           if (auto *FnDerivIR = FnDerivAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
             std::cerr << "Derivative function " + DerivativeName + " IR:\n";
             FnDerivIR->print(llvm::errs());
@@ -78,6 +79,7 @@ void Driver::HandleDefinition() {
             mJIT->addModule(move(mModule));
             InitializeModuleAndPassManager();
           }
+          mDerivativeFunctions[DerivativeName] = std::move(FnDerivAST_backup);
         }
       }
     }

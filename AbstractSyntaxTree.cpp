@@ -144,15 +144,11 @@ Function *FunctionAST::codegen(Driver& TheDriver,
   using llvm::Function;
   using llvm::BasicBlock;
   auto &P = *mPrototype;
-  TheDriver.mFunctionProtos[mPrototype->getName()] = move(mPrototype);
+  TheDriver.mFunctionProtos[mPrototype->getName()] = mPrototype->clone();
   // First, check for an existing function from a previous 'extern' declaration.
   Function *TheFunction = TheDriver.getFunction(P.getName());
-//   if (!TheFunction)
-//     TheFunction = mPrototype->codegen(TheContext, Builder, TheModule, NamedValues);
   if (!TheFunction)
     return nullptr;
-//   if (!TheFunction->empty())
-//     return (Function*)LogErrorV("Function cannot be redefined.");
   // Create a new basic block to start insertion into.
   BasicBlock *BB = BasicBlock::Create(TheContext, "entry", TheFunction);
   Builder.SetInsertPoint(BB);
@@ -203,15 +199,15 @@ unique_ptr<FunctionAST> FunctionAST::clone() const {
   return make_unique<FunctionAST>(mPrototype->clone(), mBody->clone());
 }
 
-unique_ptr<ExprAST> ExprAST::Derivative(const string& Variable) const {
+unique_ptr<ExprAST> ExprAST::Derivative(Driver& TheDriver, const string& Variable) const {
   return nullptr;
 }
 
-unique_ptr<ExprAST> NumberExprAST::Derivative(const string& Variable) const {
+unique_ptr<ExprAST> NumberExprAST::Derivative(Driver& TheDriver, const string& Variable) const {
   return make_unique<NumberExprAST>(0.0);
 }
 
-unique_ptr<ExprAST> VariableExprAST::Derivative(const string& Variable) const {
+unique_ptr<ExprAST> VariableExprAST::Derivative(Driver& TheDriver, const string& Variable) const {
   if (Variable == mName) {
     return make_unique<NumberExprAST>(1.0);
   } else {
@@ -219,9 +215,9 @@ unique_ptr<ExprAST> VariableExprAST::Derivative(const string& Variable) const {
   }
 }
 
-unique_ptr<ExprAST> BinaryExprAST::Derivative(const string& Variable) const {
-  auto LHSDeriv = mLHS->clone()->Derivative(Variable);
-  auto RHSDeriv = mRHS->clone()->Derivative(Variable);
+unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& Variable) const {
+  auto LHSDeriv = mLHS->clone()->Derivative(TheDriver, Variable);
+  auto RHSDeriv = mRHS->clone()->Derivative(TheDriver, Variable);
   if (mOperator == "+" || mOperator == "-") {
     // Derivative of "f(x) + g(x)" or "f(x) - g(x)"
     // = "f'(x) + g'(x)" or "f'(x) - g'(x)"
@@ -261,17 +257,53 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(const string& Variable) const {
   }
 }
 
-unique_ptr<ExprAST> CallExprAST::Derivative(const string& Variable) const {
+unique_ptr<ExprAST> CallExprAST::Derivative(Driver& TheDriver, const string& Variable) const {
+  // crazy code!
   vector<unique_ptr<ExprAST>> mArgsDerivative;
   for (const auto& i : mArguments) {
-    mArgsDerivative.push_back(i->Derivative(Variable));
+    mArgsDerivative.push_back(i->Derivative(TheDriver, Variable));
   }
-  // TODO: compute the function Derivative
-  return nullptr;
+  // find the function from the proto map
+  auto FI = TheDriver.mFunctionProtos.find(mCallee);
+  if (FI != TheDriver.mFunctionProtos.end()) {
+    const vector<string> ArgNames = FI->second->getArgumentNames();
+    vector<unique_ptr<CallExprAST>> DerivativeCalls;
+    if (ArgNames.size() == mArguments.size()) {
+      for (size_t i = 0; i < ArgNames.size(); ++i) {
+        const string DerivativeFuncName = "d" + mCallee + "_d" + ArgNames[i];
+        auto dFI = TheDriver.mDerivativeFunctions.find(DerivativeFuncName);
+        if (dFI != TheDriver.mDerivativeFunctions.end()) {
+          vector<unique_ptr<ExprAST>> ArgumentsClone;
+          for (size_t j = 0; j < mArguments.size(); ++j) {
+            ArgumentsClone.push_back(mArguments[j]->clone());
+          }
+          DerivativeCalls.push_back(make_unique<CallExprAST>(DerivativeFuncName, move(ArgumentsClone)));
+        } else {
+          std::cerr << "Function " << DerivativeFuncName << " not found!\n";
+        }
+      }
+      // multiply DerivativeCalls and mArgsDerivative
+      if (ArgNames.size() > 0) {
+        auto LHS = make_unique<BinaryExprAST>("*", move(DerivativeCalls[0]), move(mArgsDerivative[0]));
+        for (size_t i = 1; i < ArgNames.size(); ++i) {
+          auto RHS = make_unique<BinaryExprAST>("*", move(DerivativeCalls[i]), move(mArgsDerivative[i]));
+          LHS = make_unique<BinaryExprAST>("+", move(LHS), move(RHS));
+        }
+        return move(LHS);
+      }
+    } else {
+      std::cerr << "Function args mismatch!\n";
+    }
+  } else {
+    std::cerr << "The function call " << mCallee << " not found!\n";
+  }
+  return make_unique<NumberExprAST>(0.0);
 }
 
-unique_ptr<FunctionAST> FunctionAST::Derivative(const string& Variable, const string& FunctionName) const {
-  auto Derivative = mBody->Derivative(Variable);
+unique_ptr<FunctionAST> FunctionAST::Derivative(Driver& TheDriver, 
+                                                const string& Variable,
+                                                const string& FunctionName) const {
+  auto Derivative = mBody->Derivative(TheDriver, Variable);
   auto DerivativePrototype = make_unique<PrototypeAST>(FunctionName, mPrototype->getArgumentNames());
   return make_unique<FunctionAST>(move(DerivativePrototype), move(Derivative));
 }
@@ -280,9 +312,9 @@ unique_ptr<ExprAST> IfExprAST::clone() const {
   return make_unique<IfExprAST>(mCond->clone(), mThen->clone(), mElse->clone());
 }
 
-unique_ptr<ExprAST> IfExprAST::Derivative(const string &Variable) const {
-  auto DerivativeThen = mThen->Derivative(Variable);
-  auto DerivativeElse = mElse->Derivative(Variable);
+unique_ptr<ExprAST> IfExprAST::Derivative(Driver& TheDriver, const string &Variable) const {
+  auto DerivativeThen = mThen->Derivative(TheDriver, Variable);
+  auto DerivativeElse = mElse->Derivative(TheDriver, Variable);
   return make_unique<IfExprAST>(mCond->clone(), move(DerivativeThen), move(DerivativeElse));
 }
 
