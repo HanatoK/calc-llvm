@@ -280,6 +280,8 @@ unique_ptr<ExprAST> CallExprAST::Derivative(Driver& TheDriver, const string& Var
           DerivativeCalls.push_back(make_unique<CallExprAST>(DerivativeFuncName, move(ArgumentsClone)));
         } else {
           std::cerr << "Function " << DerivativeFuncName << " not found!\n";
+          // TODO: can we on-the-fly generate a derivative here?
+          return make_unique<NumberExprAST>(0.0);
         }
       }
       // multiply DerivativeCalls and mArgsDerivative
