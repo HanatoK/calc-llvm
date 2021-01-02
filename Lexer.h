@@ -31,6 +31,9 @@ enum class Token {
   If = -11,
   Then = -12,
   Else = -13,
+  For = -14,
+  In = -15,
+  Assignment = -16,
   Unknown = -255,
 };
 

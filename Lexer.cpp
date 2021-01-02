@@ -4,7 +4,9 @@ const extern map<string, Token> keywords = {{"extern", Token::Extern},
                                             {"def", Token::Definition},
                                             {"if", Token::If},
                                             {"then", Token::Then},
-                                            {"else", Token::Else}};
+                                            {"else", Token::Else},
+                                            {"for", Token::For},
+                                            {"in", Token::In}};
 
 Lexer::Lexer(): mCurrentPosition(0) {}
 
@@ -51,6 +53,7 @@ tuple<Token, variant<string, double>> Lexer::getToken() {
     case ')': t = Token::RightParenthesis; break;
     case ',': t = Token::Comma; break;
     case ';': t = Token::Semicolon; break;
+    case '=': t = Token::Assignment; break;
     case '*':
     case '/':
     case '+':

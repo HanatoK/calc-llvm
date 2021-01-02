@@ -69,6 +69,28 @@ public:
                                          const string& Variable) const;
 };
 
+/// ForExprAST - Expression class for for/in.
+class ForExprAST: public ExprAST {
+private:
+  string mVarName;
+  unique_ptr<ExprAST> mStart;
+  unique_ptr<ExprAST> mEnd;
+  unique_ptr<ExprAST> mStep;
+  unique_ptr<ExprAST> mBody;
+public:
+  ForExprAST(const string& VarName, unique_ptr<ExprAST> Start,
+             unique_ptr<ExprAST> End, unique_ptr<ExprAST> Step,
+             unique_ptr<ExprAST> Body)
+    : mVarName(VarName), mStart(move(Start)), mEnd(move(End)),
+      mStep(move(Step)), mBody(move(Body)) {}
+  virtual Value *codegen(Driver& TheDriver, LLVMContext& TheContext,
+                         IRBuilder<>& Builder, Module& TheModule,
+                         map<string, Value*>& NamedValues);
+  virtual unique_ptr<ExprAST> clone() const;
+  virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
+                                         const string& Variable) const;
+};
+
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST: public ExprAST {
 private:

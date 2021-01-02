@@ -185,8 +185,8 @@ unique_ptr<ExprAST> Parser::ParsePrimary() {
         return LogError(ErrorMsg);
       }
     }
-    case Token::If:
-      return ParseIfExpr();
+    case Token::If: return ParseIfExpr();
+    case Token::For: return ParseForExpr();
   }
 #ifdef DEBUG_PARSER
   std::cout << "End of ParsePrimary()\n";
@@ -205,6 +205,48 @@ unique_ptr<ExprAST> Parser::ParseExpression() {
   std::cout << "End of ParseExpression()\n";
 #endif
   return ParseBinOpRHS(0, move(LHS));
+}
+
+unique_ptr<ExprAST> Parser::ParseForExpr() {
+  using std::get;
+  // eat up "for"
+  getNextToken();
+  if (get<0>(mCurrentToken) != Token::Identifier)
+    return LogError("expected identifier after for");
+  string IdName = get<string>(get<1>(mCurrentToken));
+  // eat up identifier
+  getNextToken();
+  if (get<0>(mCurrentToken) != Token::Assignment)
+    return LogError("expected = after identifier in for");
+  // eat up "="
+  getNextToken();
+  auto Start = ParseExpression();
+  if (!Start)
+    return nullptr;
+  if (get<0>(mCurrentToken) != Token::Comma)
+    return LogError("expected , after start value in for");
+  // eat up ","
+  getNextToken();
+  auto End = ParseExpression();
+  if (!End)
+    return nullptr;
+  // the step value is optional
+  unique_ptr<ExprAST> Step;
+  if (get<0>(mCurrentToken) == Token::Comma) {
+    // parse step expression if we have for
+    getNextToken();
+    Step = ParseExpression();
+    if (!Step)
+      return nullptr;
+  }
+  if (get<0>(mCurrentToken) != Token::In)
+    return LogError("expected 'in' at the end of for loop");
+  getNextToken();
+  auto Body = ParseExpression();
+  if (!Body)
+    return nullptr;
+  return make_unique<ForExprAST>(IdName, move(Start), move(End), move(Step),
+                                 move(Body));
 }
 
 unique_ptr<ExprAST> Parser::ParseUnaryOpRHS() {

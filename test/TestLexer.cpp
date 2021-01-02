@@ -5,7 +5,7 @@
 
 void testLexer(const std::string& str) {
   Lexer l;
-  l.appendString(str);
+  l.AppendString(str);
   auto result = l.getToken();
   do {
     switch (std::get<0>(result)) {

@@ -13,7 +13,7 @@ unique_ptr<ExprAST> LogError(const string& Str) {
   return nullptr;
 }
 
-[[maybe_unused]] unique_ptr<FunctionAST> LogErrorF(const string& Str) {
+unique_ptr<FunctionAST> LogErrorF(const string& Str) {
   std::cerr << Str << std::endl;
   return nullptr;
 }
@@ -26,6 +26,10 @@ unique_ptr<PrototypeAST> LogErrorP(const string& Str) {
 Value *LogErrorV(const string& Str) {
   LogError(Str);
   return nullptr;
+}
+
+string PrototypeAST::getName() const {
+  return this->mName;
 }
 
 Value *NumberExprAST::codegen(Driver& TheDriver,
@@ -104,10 +108,6 @@ Value *CallExprAST::codegen(Driver& TheDriver,
   return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
-string PrototypeAST::getName() const {
-  return this->mName;
-}
-
 Function *PrototypeAST::codegen(Driver& TheDriver,
                                 LLVMContext& TheContext,
                                 IRBuilder<>& Builder,
@@ -169,6 +169,142 @@ Function *FunctionAST::codegen(Driver& TheDriver,
   // Error reading body, remove function.
   TheFunction->eraseFromParent();
   return nullptr;
+}
+
+Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder<> &Builder, Module &TheModule,
+                          map<string, Value *> &NamedValues) {
+  using llvm::PHINode;
+  using llvm::BasicBlock;
+  using llvm::ConstantFP;
+  using llvm::APFloat;
+  using llvm::Constant;
+  // Emit the start code first, without 'variable' in scope.
+  Value *StartVal = mStart->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!StartVal)
+    return nullptr;
+  // TODO: figure out what happen here
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  BasicBlock *PreheaderBB = Builder.GetInsertBlock();
+  BasicBlock *LoopBB =
+    BasicBlock::Create(TheContext, "loop", TheFunction);
+  // Insert an explicit fall through from the current block to the LoopBB.
+  Builder.CreateBr(LoopBB);
+  // Start insertion in LoopBB.
+  Builder.SetInsertPoint(LoopBB);
+  // Start the PHI node with an entry for Start.
+  PHINode *Variable = Builder.CreatePHI(llvm::Type::getDoubleTy(TheContext),
+                                        2, mVarName.c_str());
+  Variable->addIncoming(StartVal, PreheaderBB);
+  // Within the loop, the variable is defined equal to the PHI node.  If it
+  // shadows an existing variable, we have to restore it, so save it now.
+  /*
+     Now the code starts to get more interesting. Our ‘for’ loop introduces a new 
+     variable to the symbol table. This means that our symbol table can now contain 
+     either function arguments or loop variables. To handle this, before we codegen 
+     the body of the loop, we add the loop variable as the current value for its 
+     name. Note that it is possible that there is a variable of the same name in the 
+     outer scope. It would be easy to make this an error (emit an error and return 
+     null if there is already an entry for VarName) but we choose to allow shadowing 
+     of variables. In order to handle this correctly, we remember the Value that we 
+     are potentially shadowing in OldVal (which will be null if there is no shadowed 
+     variable).
+  */
+  Value *OldVal = NamedValues[mVarName];
+  NamedValues[mVarName] = Variable;
+  // Emit the body of the loop.  This, like any other expr, can change the
+  // current BB.  Note that we ignore the value computed by the body, but don't
+  // allow an error.
+  if (!mBody->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues))
+    return nullptr;
+  Value *StepVal = nullptr;
+  if (mStep) {
+    StepVal = mStep->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+    if (!StepVal)
+      return nullptr;
+  } else {
+    // If not specified, use 1.0.
+    StepVal = ConstantFP::get(TheContext, APFloat(1.0));
+  }
+  Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
+  // Compute the end condition
+  Value *EndCond = mEnd->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!EndCond)
+    return nullptr;
+  // Convert condition to a bool by comparing non-equal to 0.0.
+  EndCond = Builder.CreateFCmpONE(
+      EndCond, ConstantFP::get(TheContext, APFloat(0.0)), "loopcond");
+  // Create the "after loop" block and insert it.
+  BasicBlock *LoopEndBB = Builder.GetInsertBlock();
+  BasicBlock *AfterBB =
+      BasicBlock::Create(TheContext, "afterloop", TheFunction);
+  // Insert the conditional branch into the end of LoopEndBB.
+  Builder.CreateCondBr(EndCond, LoopBB, AfterBB);
+  // Any new code will be inserted in AfterBB.
+  Builder.SetInsertPoint(AfterBB);
+  // Add a new entry to the PHI node for the backedge.
+  Variable->addIncoming(NextVar, LoopEndBB);
+  // Restore the unshadowed variable.
+  if (OldVal)
+    NamedValues[mVarName] = OldVal;
+  else
+    NamedValues.erase(mVarName);
+  // for expr always returns 0.0.
+  return Constant::getNullValue(llvm::Type::getDoubleTy(TheContext));
+}
+
+Value *IfExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder<> &Builder, Module &TheModule,
+                          map<string, Value *> &NamedValues) {
+  using llvm::PHINode;
+  using llvm::BasicBlock;
+  using llvm::ConstantFP;
+  using llvm::APFloat;
+  Value *CondV = mCond->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!CondV)
+    return nullptr;
+  // Convert condition to a bool by comparing non-equal to 0.0.
+  CondV = Builder.CreateFCmpONE(CondV, ConstantFP::get(TheContext, APFloat(0.0)), "ifcond");
+  // Get the current function object
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  // Create blocks for the then and else cases.  Insert the 'then' block at the
+  // end of TheFunction.
+  BasicBlock *ThenBB = BasicBlock::Create(TheContext, "then", TheFunction);
+  BasicBlock *ElseBB = BasicBlock::Create(TheContext, "else");
+  BasicBlock *MergeBB = BasicBlock::Create(TheContext, "ifcont");
+  Builder.CreateCondBr(CondV, ThenBB, ElseBB);
+  // change the insert point to the end of ThenBB
+  Builder.SetInsertPoint(ThenBB);
+  Value *ThenV = mThen->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!ThenV)
+    return nullptr;
+  // Create an unconditional branch to the merge block
+  Builder.CreateBr(MergeBB);
+  // Codegen of 'Then' can change the current block, update ThenBB for the PHI.
+  ThenBB = Builder.GetInsertBlock();
+  // Emit the else block.
+  TheFunction->getBasicBlockList().push_back(ElseBB);
+  Builder.SetInsertPoint(ElseBB);
+  Value *ElseV = mElse->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  if (!ElseV)
+    return nullptr;
+  Builder.CreateBr(MergeBB);
+  // codegen of 'Else' can change the current block, update ElseBB for the PHI.
+  ElseBB = Builder.GetInsertBlock();
+  // Emit merge block.
+  TheFunction->getBasicBlockList().push_back(MergeBB);
+  Builder.SetInsertPoint(MergeBB);
+  PHINode *PN = Builder.CreatePHI(llvm::Type::getDoubleTy(TheContext), 2, "iftmp");
+  PN->addIncoming(ThenV, ThenBB);
+  PN->addIncoming(ElseV, ElseBB);
+  return PN;
+}
+
+unique_ptr<ExprAST> IfExprAST::clone() const {
+  return make_unique<IfExprAST>(mCond->clone(), mThen->clone(), mElse->clone());
+}
+
+unique_ptr<ExprAST> ForExprAST::clone() const {
+  return make_unique<ForExprAST>(mVarName, mStart->clone(), mEnd->clone(),
+                                 mStep->clone(), mBody->clone());
 }
 
 unique_ptr<ExprAST> NumberExprAST::clone() const {
@@ -310,9 +446,7 @@ unique_ptr<FunctionAST> FunctionAST::Derivative(Driver& TheDriver,
   return make_unique<FunctionAST>(move(DerivativePrototype), move(Derivative));
 }
 
-unique_ptr<ExprAST> IfExprAST::clone() const {
-  return make_unique<IfExprAST>(mCond->clone(), mThen->clone(), mElse->clone());
-}
+
 
 unique_ptr<ExprAST> IfExprAST::Derivative(Driver& TheDriver, const string &Variable) const {
   auto DerivativeThen = mThen->Derivative(TheDriver, Variable);
@@ -320,48 +454,11 @@ unique_ptr<ExprAST> IfExprAST::Derivative(Driver& TheDriver, const string &Varia
   return make_unique<IfExprAST>(mCond->clone(), move(DerivativeThen), move(DerivativeElse));
 }
 
-Value *IfExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder<> &Builder, Module &TheModule,
-                          map<string, Value *> &NamedValues) {
-  using llvm::PHINode;
-  using llvm::BasicBlock;
-  using llvm::ConstantFP;
-  using llvm::APFloat;
-  Value *CondV = mCond->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
-  if (!CondV)
-    return nullptr;
-  // Convert condition to a bool by comparing non-equal to 0.0.
-  CondV = Builder.CreateFCmpONE(CondV, ConstantFP::get(TheContext, APFloat(0.0)), "ifcond");
-  // Get the current function object
-  Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  // Create blocks for the then and else cases.  Insert the 'then' block at the
-  // end of TheFunction.
-  BasicBlock *ThenBB = BasicBlock::Create(TheContext, "then", TheFunction);
-  BasicBlock *ElseBB = BasicBlock::Create(TheContext, "else");
-  BasicBlock *MergeBB = BasicBlock::Create(TheContext, "ifcont");
-  Builder.CreateCondBr(CondV, ThenBB, ElseBB);
-  // change the insert point to the end of ThenBB
-  Builder.SetInsertPoint(ThenBB);
-  Value *ThenV = mThen->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
-  if (!ThenV)
-    return nullptr;
-  // Create an unconditional branch to the merge block
-  Builder.CreateBr(MergeBB);
-  // Codegen of 'Then' can change the current block, update ThenBB for the PHI.
-  ThenBB = Builder.GetInsertBlock();
-  // Emit the else block.
-  TheFunction->getBasicBlockList().push_back(ElseBB);
-  Builder.SetInsertPoint(ElseBB);
-  Value *ElseV = mElse->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
-  if (!ElseV)
-    return nullptr;
-  Builder.CreateBr(MergeBB);
-  // codegen of 'Else' can change the current block, update ElseBB for the PHI.
-  ElseBB = Builder.GetInsertBlock();
-  // Emit merge block.
-  TheFunction->getBasicBlockList().push_back(MergeBB);
-  Builder.SetInsertPoint(MergeBB);
-  PHINode *PN = Builder.CreatePHI(llvm::Type::getDoubleTy(TheContext), 2, "iftmp");
-  PN->addIncoming(ThenV, ThenBB);
-  PN->addIncoming(ElseV, ElseBB);
-  return PN;
+unique_ptr<ExprAST> ForExprAST::Derivative(Driver& TheDriver, const string &Variable) const {
+  // TODO: I am still not sure how to take the derivative of a for loop...
+  // just simply assume we can take the derivative of the body
+  auto DerivativeBody = mBody->Derivative(TheDriver, Variable);
+  // further assume Variable is not changed in Start, End and Step
+  return make_unique<ForExprAST>(mVarName, mStart->clone(), mEnd->clone(),
+                                 mStep->clone(), move(DerivativeBody));
 }
