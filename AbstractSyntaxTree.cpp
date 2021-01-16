@@ -399,13 +399,12 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
         mRHS->Type() == "NumberExprAST") {
       return make_unique<NumberExprAST>(0.0);
     } else if (mLHS->Type() == "NumberExprAST") {
-      auto factor = make_unique<NumberExprAST>(-1.0);
+      auto factor = make_unique<BinaryExprAST>("-", make_unique<NumberExprAST>(0.0), mLHS->clone());
       auto Denominator = make_unique<BinaryExprAST>("*", mRHS->clone(), mRHS->clone());
       auto NewLHS = make_unique<BinaryExprAST>("/", move(factor), move(Denominator));
       return make_unique<BinaryExprAST>("*", move(NewLHS), move(RHSDeriv));
     } else if (mRHS->Type() == "NumberExprAST") {
-      auto NewLHS = make_unique<BinaryExprAST>("/", make_unique<NumberExprAST>(1.0), mRHS->clone());
-      return make_unique<BinaryExprAST>("*", move(NewLHS), move(LHSDeriv));
+      return make_unique<BinaryExprAST>("/", move(LHSDeriv), mRHS->clone());
     }
 // #endif
     auto NumeratorLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
