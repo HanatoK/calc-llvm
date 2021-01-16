@@ -382,12 +382,13 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     Args.push_back(mLHS->clone());
     auto LogLHS = make_unique<CallExprAST>("log", move(Args));
     auto NewLHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), move(LogLHS));
-    NewLHS = make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
+//     NewLHS = make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
     auto NewRHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     auto TmpRHSRightFactor = make_unique<BinaryExprAST>("/", make_unique<NumberExprAST>(1.0), mLHS->clone());
     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), move(TmpRHSRightFactor));
-    NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), this->clone());
-    return make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
+    NewLHS = make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
+//     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), this->clone());
+    return make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
   } else {
     return nullptr;
   }
