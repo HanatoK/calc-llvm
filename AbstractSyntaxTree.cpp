@@ -357,16 +357,57 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
   if (mOperator == "+" || mOperator == "-") {
     // Derivative of "f(x) + g(x)" or "f(x) - g(x)"
     // = "f'(x) + g'(x)" or "f'(x) - g'(x)"
+// #ifdef OPTIMIZE_DERIVATIVE
+    // Optimization for specific cases
+    if (mLHS->Type() == "NumberExprAST" &&
+        mRHS->Type() == "NumberExprAST") {
+      return make_unique<NumberExprAST>(0.0);
+    } else if (mLHS->Type() == "NumberExprAST") {
+      if (mOperator == "+") {
+        return move(RHSDeriv);
+      } else {
+        return make_unique<BinaryExprAST>("*", make_unique<NumberExprAST>(-1.0), move(RHSDeriv));
+      }
+    } else if (mRHS->Type() == "NumberExprAST") {
+      return move(LHSDeriv);
+    }
+// #endif
     return make_unique<BinaryExprAST>(mOperator, move(LHSDeriv), move(RHSDeriv));
   } else if (mOperator == "*") {
     // Derivative of "f(x) * g(x)"
     // = "f'(x) * g(x) + g'(x) * f(x)"
+// #ifdef OPTIMIZE_DERIVATIVE
+    // Optimization for specific cases
+    if (mLHS->Type() == "NumberExprAST" &&
+        mRHS->Type() == "NumberExprAST") {
+      return make_unique<NumberExprAST>(0.0);
+    } else if (mLHS->Type() == "NumberExprAST") {
+      return make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
+    } else if (mRHS->Type() == "NumberExprAST") {
+      return make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
+    }
+// #endif
     auto NewLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     auto NewRHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
     return make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
   } else if (mOperator == "/") {
     // Derivative of "f(x) / g(x)"
     // = "(f'(x) * g(x) - g'(x) * f(x)) / (g(x) * g(x))"
+// #ifdef OPTIMIZE_DERIVATIVE
+    // Optimization for specific cases
+    if (mLHS->Type() == "NumberExprAST" &&
+        mRHS->Type() == "NumberExprAST") {
+      return make_unique<NumberExprAST>(0.0);
+    } else if (mLHS->Type() == "NumberExprAST") {
+      auto factor = make_unique<NumberExprAST>(-1.0);
+      auto Denominator = make_unique<BinaryExprAST>("*", mRHS->clone(), mRHS->clone());
+      auto NewLHS = make_unique<BinaryExprAST>("/", move(factor), move(Denominator));
+      return make_unique<BinaryExprAST>("*", move(NewLHS), move(RHSDeriv));
+    } else if (mRHS->Type() == "NumberExprAST") {
+      auto NewLHS = make_unique<BinaryExprAST>("/", make_unique<NumberExprAST>(1.0), mRHS->clone());
+      return make_unique<BinaryExprAST>("*", move(NewLHS), move(LHSDeriv));
+    }
+// #endif
     auto NumeratorLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     auto NumeratorRHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
     auto Numerator = make_unique<BinaryExprAST>("-", move(NumeratorLHS), move(NumeratorRHS));
@@ -376,18 +417,15 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     // Derivative of "f(x) ^ g(x)"
     // let y = f(x) ^ g(x), then ln(y) = g(x) * ln(f(x))
     // y'/y = g'(x) * ln(f(x)) + g(x) * (1/f(x)) * f'(x)
-    // y' = g'(x) * ln(f(x)) * (f(x) ^ g(x)) + g(x) * (1/f(x)) * f'(x) * (f(x) ^ g(x))
-    // TODO: this requires the std::log function to be registered
+    // y' = (g'(x) * ln(f(x))  + g(x) * (1/f(x)) * f'(x)) * (f(x) ^ g(x))
     vector<unique_ptr<ExprAST>> Args;
     Args.push_back(mLHS->clone());
     auto LogLHS = make_unique<CallExprAST>("log", move(Args));
     auto NewLHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), move(LogLHS));
-//     NewLHS = make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
     auto NewRHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     auto TmpRHSRightFactor = make_unique<BinaryExprAST>("/", make_unique<NumberExprAST>(1.0), mLHS->clone());
     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), move(TmpRHSRightFactor));
     NewLHS = make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
-//     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), this->clone());
     return make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
   } else {
     return nullptr;
