@@ -1,4 +1,5 @@
 #include "Driver.h"
+#include "Library.h"
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
@@ -101,6 +102,28 @@ void Driver::HandleExtern() {
     }
   } else {
     mParser.getNextToken();
+  }
+}
+
+void Driver::LoadLibraryFunctions() {
+  // Load some mathematics functions
+  using llvm::Type;
+  using llvm::FunctionType;
+  using llvm::Function;
+  for (auto it = ExternFunctionsMap.begin(); it != ExternFunctionsMap.end(); ++it) {
+    auto externalFunction = make_unique<PrototypeAST>(it->first, it->second);
+    if (auto *ProtoIR = externalFunction->codegen(*this, mContext, mBuilder, *mModule, mNamedValues)) {
+      std::cout << "Load function " << externalFunction->getName() << "(";
+      const auto ArgumentNames = externalFunction->getArgumentNames();
+      for (auto it_arg = ArgumentNames.begin(); it_arg != ArgumentNames.end(); ++it_arg) {
+        if (it_arg != ArgumentNames.begin()) {
+          std::cout << ",";
+        }
+        std::cout << *it_arg;
+      }
+      std::cout << ")\n";
+      mFunctionProtos[externalFunction->getName()] = move(externalFunction);
+    }
   }
 }
 

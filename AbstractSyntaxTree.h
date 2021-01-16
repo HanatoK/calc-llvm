@@ -232,7 +232,7 @@ public:
   vector<string> getArgumentNames() const {
     return mArguments;
   }
-  PrototypeAST(string  Name, vector<string> Args)
+  PrototypeAST(string Name, vector<string> Args)
     : mName(move(Name)), mArguments(move(Args)) {}
   string getName() const;
   Function *codegen(Driver& TheDriver,

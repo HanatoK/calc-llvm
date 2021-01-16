@@ -387,7 +387,7 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     auto TmpRHSRightFactor = make_unique<BinaryExprAST>("/", make_unique<NumberExprAST>(1.0), mLHS->clone());
     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), move(TmpRHSRightFactor));
     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), this->clone());
-    return make_unique<BinaryExprAST>(mOperator, move(NewLHS), move(NewRHS));
+    return make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
   } else {
     return nullptr;
   }

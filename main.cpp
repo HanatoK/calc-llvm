@@ -9,6 +9,7 @@ int main() {
 //   std::cout << "Input string: " << s << std::endl;
   Parser p(s);
   Driver d(p);
+  d.LoadLibraryFunctions();
   d.MainLoop();
 //   s = "(-5+2)*8";
 //   Lexer l;

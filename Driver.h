@@ -34,6 +34,7 @@ public:
   void HandleTopLevelExpression();
   void HandleExtern();
   void HandleDefinition();
+  void LoadLibraryFunctions();
   void MainLoop();
   tuple<string, double> traverseAST(const ExprAST* Node) const;
   static void traverseAST(const PrototypeAST* Node) ;

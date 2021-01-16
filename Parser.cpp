@@ -31,7 +31,7 @@ Parser::Parser(const string& Str) {
   SetupInput(Str);
 }
 
-[[maybe_unused]] void Parser::AppendString(const string& Str) {
+void Parser::AppendString(const string& Str) {
   mLexer.AppendString(Str);
 }
 

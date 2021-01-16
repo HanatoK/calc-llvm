@@ -28,8 +28,7 @@ public:
   Parser();
   Parser(const string& Str);
   void SetupInput(const string& Str);
-
-    [[maybe_unused]] void AppendString(const string& Str);
+  void AppendString(const string& Str);
   string getInputString() const;
   static int GetBinaryPrecedence(const string& Op) ;
   static int GetUnaryPrecedence(const string& Op) ;
