@@ -10,6 +10,13 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
+# options
+option(OPTIMIZE_DERIVATIVE "Optimize the derivative calculation" OFF)
+
+if (OPTIMIZE_DERIVATIVE)
+  add_definitions(-DOPTIMIZE_DERIVATIVE)
+endif()
+
 # set the project name and version
 project(MainProject VERSION 1.0)
 configure_file(Version.h.in Version.h)

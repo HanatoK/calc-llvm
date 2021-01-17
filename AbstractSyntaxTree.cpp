@@ -357,7 +357,7 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
   if (mOperator == "+" || mOperator == "-") {
     // Derivative of "f(x) + g(x)" or "f(x) - g(x)"
     // = "f'(x) + g'(x)" or "f'(x) - g'(x)"
-// #ifdef OPTIMIZE_DERIVATIVE
+#ifdef OPTIMIZE_DERIVATIVE
     // Optimization for specific cases
     if (mLHS->Type() == "NumberExprAST" &&
         mRHS->Type() == "NumberExprAST") {
@@ -371,12 +371,12 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     } else if (mRHS->Type() == "NumberExprAST") {
       return move(LHSDeriv);
     }
-// #endif
+#endif
     return make_unique<BinaryExprAST>(mOperator, move(LHSDeriv), move(RHSDeriv));
   } else if (mOperator == "*") {
     // Derivative of "f(x) * g(x)"
     // = "f'(x) * g(x) + g'(x) * f(x)"
-// #ifdef OPTIMIZE_DERIVATIVE
+#ifdef OPTIMIZE_DERIVATIVE
     // Optimization for specific cases
     if (mLHS->Type() == "NumberExprAST" &&
         mRHS->Type() == "NumberExprAST") {
@@ -386,14 +386,14 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     } else if (mRHS->Type() == "NumberExprAST") {
       return make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     }
-// #endif
+#endif
     auto NewLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     auto NewRHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
     return make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
   } else if (mOperator == "/") {
     // Derivative of "f(x) / g(x)"
     // = "(f'(x) * g(x) - g'(x) * f(x)) / (g(x) * g(x))"
-// #ifdef OPTIMIZE_DERIVATIVE
+#ifdef OPTIMIZE_DERIVATIVE
     // Optimization for specific cases
     if (mLHS->Type() == "NumberExprAST" &&
         mRHS->Type() == "NumberExprAST") {
@@ -406,7 +406,7 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     } else if (mRHS->Type() == "NumberExprAST") {
       return make_unique<BinaryExprAST>("/", move(LHSDeriv), mRHS->clone());
     }
-// #endif
+#endif
     auto NumeratorLHS = make_unique<BinaryExprAST>("*", move(LHSDeriv), mRHS->clone());
     auto NumeratorRHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), mLHS->clone());
     auto Numerator = make_unique<BinaryExprAST>("-", move(NumeratorLHS), move(NumeratorRHS));
@@ -417,6 +417,24 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     // let y = f(x) ^ g(x), then ln(y) = g(x) * ln(f(x))
     // y'/y = g'(x) * ln(f(x)) + g(x) * (1/f(x)) * f'(x)
     // y' = (g'(x) * ln(f(x))  + g(x) * (1/f(x)) * f'(x)) * (f(x) ^ g(x))
+#ifdef OPTIMIZE_DERIVATIVE
+    // Optimization for specific cases
+    if (mLHS->Type() == "NumberExprAST" &&
+        mRHS->Type() == "NumberExprAST") {
+      return make_unique<NumberExprAST>(0.0);
+    } else if (mLHS->Type() == "NumberExprAST") {
+      vector<unique_ptr<ExprAST>> Args;
+      Args.push_back(mLHS->clone());
+      auto LogLHS = make_unique<CallExprAST>("log", move(Args));
+      auto NewLHS = make_unique<BinaryExprAST>("*", move(RHSDeriv), move(LogLHS));
+      return make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
+    } else if (mRHS->Type() == "NumberExprAST") {
+      auto NewExp = make_unique<BinaryExprAST>("-", mRHS->clone(), make_unique<NumberExprAST>(1.0));
+      auto NewLHS = make_unique<BinaryExprAST>("^", mLHS->clone(), move(NewExp));
+      NewLHS = make_unique<BinaryExprAST>("*", mRHS->clone(), move(NewLHS));
+      return make_unique<BinaryExprAST>("*", move(NewLHS), move(LHSDeriv));
+    }
+#endif
     vector<unique_ptr<ExprAST>> Args;
     Args.push_back(mLHS->clone());
     auto LogLHS = make_unique<CallExprAST>("log", move(Args));
@@ -427,6 +445,7 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     NewLHS = make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
     return make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
   } else {
+    std::cerr << "Unknown operator " << mOperator << std::endl;
     return nullptr;
   }
 }
