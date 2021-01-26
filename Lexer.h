@@ -33,7 +33,7 @@ enum class Token {
   Else = -13,
   For = -14,
   In = -15,
-  Assignment = -16,
+//   Assignment = -16,
   Unknown = -255,
 };
 

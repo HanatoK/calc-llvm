@@ -10,7 +10,8 @@ using std::vector;
 
 // #define DEBUG_PARSER
 
-map<string, int> Parser::mBinaryOpPrecedence = {{"<", 50},
+map<string, int> Parser::mBinaryOpPrecedence = {{"=", 10},
+                                                {"<", 50},
                                                 {"+", 100},
                                                 {"-", 100},
                                                 {"*", 200},
@@ -217,7 +218,7 @@ unique_ptr<ExprAST> Parser::ParseForExpr() {
   string IdName = get<string>(get<1>(mCurrentToken));
   // eat up identifier
   getNextToken();
-  if (get<0>(mCurrentToken) != Token::Assignment)
+  if (get<0>(mCurrentToken) != Token::Operator && get<string>(get<1>(mCurrentToken)) != "=")
     return LogError("expected = after identifier in for");
   // eat up "="
   getNextToken();

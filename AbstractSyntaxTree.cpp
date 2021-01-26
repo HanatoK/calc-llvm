@@ -58,6 +58,21 @@ Value *BinaryExprAST::codegen(Driver& TheDriver,
                               IRBuilder<>& Builder,
                               Module& TheModule,
                               map<string, AllocaInst*>& NamedValues) {
+  // Special case '=' because we don't want to emit the LHS as an expression.
+  if (mOperator == "=") {
+    VariableExprAST *LHSE = static_cast<VariableExprAST*>(mLHS.get());
+    if (!LHSE)
+      return LogErrorV("destination of '=' must be a variable");
+    // Codegen the RHS
+    Value *Val = mRHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+    if (!Val)
+      return nullptr;
+    // Look up the name
+    Value *Variable = NamedValues[LHSE->getVariable()];
+    if (!Variable)
+      return LogErrorV("Unknown variable name");
+    return Val;
+  }
   Value *L = mLHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
   Value *R = mRHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
   if (!L || !R)

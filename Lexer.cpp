@@ -53,7 +53,7 @@ tuple<Token, variant<string, double>> Lexer::getToken() {
     case ')': t = Token::RightParenthesis; break;
     case ',': t = Token::Comma; break;
     case ';': t = Token::Semicolon; break;
-    case '=': t = Token::Assignment; break;
+//     case '=': t = Token::Assignment; break;
     case '*':
     case '/':
     case '+':
