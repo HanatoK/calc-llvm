@@ -27,6 +27,7 @@ using llvm::Module;
 using llvm::Value;
 using llvm::legacy::FunctionPassManager;
 using llvm::orc::KaleidoscopeJIT;
+using llvm::AllocaInst;
 
 class Driver {
 public:
@@ -41,6 +42,7 @@ public:
   void traverseAST(const FunctionAST* Node) const;
   void InitializeModuleAndPassManager();
   Function *getFunction(const string& Name);
+  AllocaInst *CreateEntryBlockAlloca(Function* TheFunction, const string& VarName);
   // currently I do not have a clear idea for avoiding this public maps...
   // TODO: check the function signature!
   map<string, unique_ptr<PrototypeAST>> mFunctionProtos;
@@ -52,7 +54,7 @@ private:
   unique_ptr<Module> mModule;
   unique_ptr<FunctionPassManager> mFPM;
   unique_ptr<KaleidoscopeJIT> mJIT;
-  map<string, Value*> mNamedValues;
+  map<string, AllocaInst*> mNamedValues;
 };
 
 #endif // DRIVER_H

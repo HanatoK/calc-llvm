@@ -3,6 +3,7 @@
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
+#include <llvm/Transforms/Utils.h>
 #include <llvm/Support/TargetSelect.h>
 #include <cmath>
 
@@ -270,6 +271,8 @@ void Driver::InitializeModuleAndPassManager() {
   mModule = make_unique<Module>("calculator", mContext);
   mFPM = make_unique<llvm::legacy::FunctionPassManager>(mModule.get());
   
+  // Promote allocas to registers.
+  mFPM->add(llvm::createPromoteMemoryToRegisterPass());
   // Do simple "peephole" optimizations and bit-twiddling optzns.
   mFPM->add(llvm::createInstructionCombiningPass());
   // Reassociate expressions.
@@ -295,4 +298,14 @@ Function* Driver::getFunction(const string& Name) {
   }
   // If no existing prototype exists, return null.
   return nullptr;
+}
+
+/// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
+/// the function.  This is used for mutable variables etc.
+AllocaInst* Driver::CreateEntryBlockAlloca(Function* TheFunction,
+                                           const string& VarName) {
+  using llvm::IRBuilder;
+  IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+                   TheFunction->getEntryBlock().begin());
+  return TmpB.CreateAlloca(llvm::Type::getDoubleTy(mContext), 0, VarName.c_str());
 }

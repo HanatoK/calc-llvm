@@ -36,7 +36,7 @@ Value *NumberExprAST::codegen(Driver& TheDriver,
                               LLVMContext& TheContext,
                               IRBuilder<>& Builder,
                               Module& TheModule,
-                              map<string, Value*>& NamedValues) {
+                              map<string, AllocaInst*>& NamedValues) {
   using llvm::ConstantFP;
   using llvm::APFloat;
   return ConstantFP::get(TheContext, APFloat(mValue));
@@ -46,18 +46,18 @@ Value *VariableExprAST::codegen(Driver& TheDriver,
                                 LLVMContext& TheContext,
                                 IRBuilder<>& Builder,
                                 Module& TheModule,
-                                map<string, Value*>& NamedValues) {
+                                map<string, AllocaInst*>& NamedValues) {
   Value *V = NamedValues[mName];
   if (!V)
     LogErrorV("Unknown variable name");
-  return V;
+  return Builder.CreateLoad(V, mName.c_str());
 }
 
 Value *BinaryExprAST::codegen(Driver& TheDriver,
                               LLVMContext& TheContext,
                               IRBuilder<>& Builder,
                               Module& TheModule,
-                              map<string, Value*>& NamedValues) {
+                              map<string, AllocaInst*>& NamedValues) {
   Value *L = mLHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
   Value *R = mRHS->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
   if (!L || !R)
@@ -82,6 +82,10 @@ Value *BinaryExprAST::codegen(Driver& TheDriver,
     ArgsV.push_back(L);
     ArgsV.push_back(R);
     return Builder.CreateCall(CallPow, ArgsV, "powtmp");
+  } else if (mOperator == "<") {
+    L = Builder.CreateFCmpULT(L, R, "cmptmp");
+    // Convert bool 0/1 to double 0.0 or 1.0
+    return Builder.CreateUIToFP(L, llvm::Type::getDoubleTy(TheContext), "booltmp");
   } else {
     return LogErrorV("invalid binary operator");
   }
@@ -91,7 +95,7 @@ Value *CallExprAST::codegen(Driver& TheDriver,
                             LLVMContext& TheContext,
                             IRBuilder<>& Builder,
                             Module& TheModule,
-                            map<string, Value*>& NamedValues) {
+                            map<string, AllocaInst*>& NamedValues) {
   // Look up the name in the global module table.
   Function *CalleeF = TheDriver.getFunction(mCallee);
   if (!CalleeF)
@@ -112,7 +116,7 @@ Function *PrototypeAST::codegen(Driver& TheDriver,
                                 LLVMContext& TheContext,
                                 IRBuilder<>& Builder,
                                 Module& TheModule,
-                                map<string, Value*>& NamedValues) {
+                                map<string, AllocaInst*>& NamedValues) {
   using llvm::Type;
   using llvm::FunctionType;
   using llvm::Function;
@@ -140,7 +144,7 @@ Function *FunctionAST::codegen(Driver& TheDriver,
                                IRBuilder<>& Builder,
                                Module& TheModule,
                                FunctionPassManager& FPM,
-                               map<string, Value*>& NamedValues) {
+                               map<string, AllocaInst*>& NamedValues) {
   using llvm::Function;
   using llvm::BasicBlock;
   auto &P = *mPrototype;
@@ -155,8 +159,14 @@ Function *FunctionAST::codegen(Driver& TheDriver,
   // Record the function arguments in the NamedValues map.
   // TODO: this is a global map. Why do we clear it entirely?
   NamedValues.clear();
-  for (auto &Arg : TheFunction->args())
-    NamedValues[std::string(Arg.getName())] = &Arg;
+  for (auto &Arg : TheFunction->args()) {
+    // Create an alloca for this variable.
+    AllocaInst *Alloca = TheDriver.CreateEntryBlockAlloca(TheFunction, std::string(Arg.getName()));
+    // Store the initial value into the alloca.
+    Builder.CreateStore(&Arg, Alloca);
+    // Add arguments to variable symbol table
+    NamedValues[std::string(Arg.getName())] = Alloca;
+  }
   if (Value *RetVal = mBody->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues)) {
     // Finish off the function.
     Builder.CreateRet(RetVal);
@@ -171,30 +181,36 @@ Function *FunctionAST::codegen(Driver& TheDriver,
   return nullptr;
 }
 
-Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder<> &Builder, Module &TheModule,
-                          map<string, Value *> &NamedValues) {
+Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext,
+                           IRBuilder<> &Builder, Module &TheModule,
+                           map<string, AllocaInst*> &NamedValues) {
   using llvm::PHINode;
   using llvm::BasicBlock;
   using llvm::ConstantFP;
   using llvm::APFloat;
   using llvm::Constant;
+  using llvm::AllocaInst;
+  // TODO: figure out what happen here
+  // TODO: figure out the old phi node code
+  Function *TheFunction = Builder.GetInsertBlock()->getParent();
+  // Create an alloca for the variable in the entry block.
+  AllocaInst *Alloca = TheDriver.CreateEntryBlockAlloca(TheFunction, mVarName);
   // Emit the start code first, without 'variable' in scope.
-  Value *StartVal = mStart->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
+  Value *StartVal = mStart->codegen(TheDriver, TheContext, Builder,
+                                    TheModule, NamedValues);
   if (!StartVal)
     return nullptr;
-  // TODO: figure out what happen here
-  Function *TheFunction = Builder.GetInsertBlock()->getParent();
-  BasicBlock *PreheaderBB = Builder.GetInsertBlock();
-  BasicBlock *LoopBB =
-    BasicBlock::Create(TheContext, "loop", TheFunction);
+  Builder.CreateStore(StartVal, Alloca);
+//   BasicBlock *PreheaderBB = Builder.GetInsertBlock();
+  BasicBlock *LoopBB = BasicBlock::Create(TheContext, "loop", TheFunction);
   // Insert an explicit fall through from the current block to the LoopBB.
   Builder.CreateBr(LoopBB);
   // Start insertion in LoopBB.
   Builder.SetInsertPoint(LoopBB);
   // Start the PHI node with an entry for Start.
-  PHINode *Variable = Builder.CreatePHI(llvm::Type::getDoubleTy(TheContext),
-                                        2, mVarName.c_str());
-  Variable->addIncoming(StartVal, PreheaderBB);
+//   PHINode *Variable = Builder.CreatePHI(llvm::Type::getDoubleTy(TheContext),
+//                                         2, mVarName.c_str());
+//   Variable->addIncoming(StartVal, PreheaderBB);
   // Within the loop, the variable is defined equal to the PHI node.  If it
   // shadows an existing variable, we have to restore it, so save it now.
   /*
@@ -209,8 +225,10 @@ Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder
      are potentially shadowing in OldVal (which will be null if there is no shadowed 
      variable).
   */
-  Value *OldVal = NamedValues[mVarName];
-  NamedValues[mVarName] = Variable;
+//   Value *OldVal = NamedValues[mVarName];
+//   NamedValues[mVarName] = Variable;
+  AllocaInst *OldVal = NamedValues[mVarName];
+  NamedValues[mVarName] = Alloca;
   // Emit the body of the loop.  This, like any other expr, can change the
   // current BB.  Note that we ignore the value computed by the body, but don't
   // allow an error.
@@ -225,7 +243,7 @@ Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder
     // If not specified, use 1.0.
     StepVal = ConstantFP::get(TheContext, APFloat(1.0));
   }
-  Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
+//   Value *NextVar = Builder.CreateFAdd(Variable, StepVal, "nextvar");
   // Compute the end condition
   Value *EndCond = mEnd->codegen(TheDriver, TheContext, Builder, TheModule, NamedValues);
   if (!EndCond)
@@ -234,7 +252,7 @@ Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder
   EndCond = Builder.CreateFCmpONE(
       EndCond, ConstantFP::get(TheContext, APFloat(0.0)), "loopcond");
   // Create the "after loop" block and insert it.
-  BasicBlock *LoopEndBB = Builder.GetInsertBlock();
+//   BasicBlock *LoopEndBB = Builder.GetInsertBlock();
   BasicBlock *AfterBB =
       BasicBlock::Create(TheContext, "afterloop", TheFunction);
   // Insert the conditional branch into the end of LoopEndBB.
@@ -242,7 +260,7 @@ Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder
   // Any new code will be inserted in AfterBB.
   Builder.SetInsertPoint(AfterBB);
   // Add a new entry to the PHI node for the backedge.
-  Variable->addIncoming(NextVar, LoopEndBB);
+//   Variable->addIncoming(NextVar, LoopEndBB);
   // Restore the unshadowed variable.
   if (OldVal)
     NamedValues[mVarName] = OldVal;
@@ -252,8 +270,9 @@ Value *ForExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder
   return Constant::getNullValue(llvm::Type::getDoubleTy(TheContext));
 }
 
-Value *IfExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext, IRBuilder<> &Builder, Module &TheModule,
-                          map<string, Value *> &NamedValues) {
+Value *IfExprAST::codegen(Driver &TheDriver, LLVMContext &TheContext,
+                          IRBuilder<> &Builder, Module &TheModule,
+                          map<string, AllocaInst*> &NamedValues) {
   using llvm::PHINode;
   using llvm::BasicBlock;
   using llvm::ConstantFP;
@@ -444,6 +463,8 @@ unique_ptr<ExprAST> BinaryExprAST::Derivative(Driver& TheDriver, const string& V
     NewRHS = make_unique<BinaryExprAST>("*", move(NewRHS), move(TmpRHSRightFactor));
     NewLHS = make_unique<BinaryExprAST>("+", move(NewLHS), move(NewRHS));
     return make_unique<BinaryExprAST>("*", move(NewLHS), this->clone());
+  } else if (mOperator == "<") {
+    return this->clone();
   } else {
     std::cerr << "Unknown operator " << mOperator << std::endl;
     return nullptr;

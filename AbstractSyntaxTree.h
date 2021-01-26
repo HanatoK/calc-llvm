@@ -26,6 +26,7 @@ using llvm::IRBuilder;
 using llvm::Module;
 using llvm::Function;
 using llvm::legacy::FunctionPassManager;
+using llvm::AllocaInst;
 
 class Driver;
 class CallExprAST;
@@ -42,7 +43,7 @@ public:
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
-                         map<string, Value*>& NamedValues) = 0;
+                         map<string, AllocaInst*>& NamedValues) = 0;
   virtual unique_ptr<ExprAST> clone() const = 0;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -63,7 +64,7 @@ public:
   }
   virtual Value *codegen(Driver& TheDriver, LLVMContext& TheContext,
                          IRBuilder<>& Builder, Module& TheModule,
-                         map<string, Value*>& NamedValues);
+                         map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -85,7 +86,7 @@ public:
       mStep(move(Step)), mBody(move(Body)) {}
   virtual Value *codegen(Driver& TheDriver, LLVMContext& TheContext,
                          IRBuilder<>& Builder, Module& TheModule,
-                         map<string, Value*>& NamedValues);
+                         map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -107,7 +108,7 @@ public:
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
-                         map<string, Value*>& NamedValues);
+                         map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -129,7 +130,7 @@ public:
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
-                         map<string, Value*>& NamedValues);
+                         map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -163,7 +164,7 @@ public:
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
-                         map<string, Value*>& NamedValues);
+                         map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -209,7 +210,7 @@ public:
                          LLVMContext& TheContext,
                          IRBuilder<>& Builder,
                          Module& TheModule,
-                         map<string, Value*>& NamedValues);
+                         map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<ExprAST> clone() const;
   virtual unique_ptr<ExprAST> Derivative(Driver& TheDriver,
                                          const string& Variable) const;
@@ -239,7 +240,7 @@ public:
                     LLVMContext& TheContext,
                     IRBuilder<>& Builder,
                     Module& TheModule,
-                    map<string, Value*>& NamedValues);
+                    map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<PrototypeAST> clone() const;
 };
 
@@ -273,7 +274,7 @@ public:
                     IRBuilder<>& Builder,
                     Module& TheModule,
                     FunctionPassManager& FPM,
-                    map<string, Value*>& NamedValues);
+                    map<string, AllocaInst*>& NamedValues);
   virtual unique_ptr<FunctionAST> clone() const;
   virtual unique_ptr<FunctionAST> Derivative(Driver& TheDriver,
                                              const string& Variable,

@@ -10,7 +10,8 @@ using std::vector;
 
 // #define DEBUG_PARSER
 
-map<string, int> Parser::mBinaryOpPrecedence = {{"+", 100},
+map<string, int> Parser::mBinaryOpPrecedence = {{"<", 50},
+                                                {"+", 100},
                                                 {"-", 100},
                                                 {"*", 200},
                                                 {"/", 200},
@@ -239,8 +240,10 @@ unique_ptr<ExprAST> Parser::ParseForExpr() {
     if (!Step)
       return nullptr;
   }
-  if (get<0>(mCurrentToken) != Token::In)
+  if (get<0>(mCurrentToken) != Token::In) {
+    PrintCurrentToken();
     return LogError("expected 'in' at the end of for loop");
+  }
   getNextToken();
   auto Body = ParseExpression();
   if (!Body)

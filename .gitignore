@@ -3,3 +3,4 @@ main
 build/
 cmake-build-debug/
 .idea/
+build_no_derivative_opt/
