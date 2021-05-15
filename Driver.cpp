@@ -10,11 +10,12 @@
 // #define DEBUG_DRIVER
 
 Driver::Driver(const Parser& p):
-  mParser(p), mContext(), mBuilder(mContext) {
+  mParser(p) {
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
-  mJIT = make_unique<KaleidoscopeJIT>();
+  mBuilder = make_unique<IRBuilder<>>(*mContext);
+  mJIT = ExitOnErr(llvm::orc::KaleidoscopeJIT::Create());
   InitializeModuleAndPassManager();
 }
 
@@ -23,25 +24,27 @@ void Driver::HandleTopLevelExpression() {
 #ifdef TRAVERSE_AST
     traverseAST(FnAST->clone().get());
 #endif
-    if (auto *FnIR = FnAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+    if (auto *FnIR = FnAST->codegen(*this, *mContext, *mBuilder, *mModule, *mFPM, mNamedValues)) {
       std::cerr << "Read a top-level expr:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
       // JIT the module containing the anonymous expression, keeping a handle so
       // we can free it later.
-      auto H = mJIT->addModule(move(mModule));
+      auto RT = mJIT->getMainJITDylib().createResourceTracker();
+      auto TSM = ThreadSafeModule(std::move(mModule), std::move(mContext));
+      ExitOnErr(mJIT->addModule(move(TSM), RT));
       InitializeModuleAndPassManager();
       // Search the JIT for the __anon_expr symbol.
-      auto ExprSymbol = mJIT->findSymbol("__anon_expr");
-      assert(ExprSymbol && "Function not found");
-      double (*FP)() = (double (*)())(intptr_t)llvm::cantFail(ExprSymbol.getAddress());
+      auto ExprSymbol = ExitOnErr(mJIT->lookup("__anon_expr"));
+//       assert(ExprSymbol && "Function not found");
+      double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
       std::cout << "Evaluated to " << FP() << std::endl;
       // Delete the anonymous expression module from the JIT.
-      mJIT->removeModule(H);
+      ExitOnErr(RT->remove());
     }
     // TODO: read from a symbol table to replace the hard-coded "x"
 //     if (auto FnDerivAST = FnAST->Derivative("x", "_deriv")) {
-//       if (auto *FnDerivIR = FnDerivAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+//       if (auto *FnDerivIR = FnDerivAST->codegen(*this, *mContext, *mBuilder, *mModule, *mFPM, mNamedValues)) {
 //         std::cerr << "Derivative function IR:\n";
 //         FnDerivIR->print(llvm::errs());
 //         std::cerr << std::endl;
@@ -61,11 +64,13 @@ void Driver::HandleDefinition() {
 #ifdef TRAVERSE_AST
     traverseAST(FnAST_backup.get());
 #endif
-    if (auto *FnIR = FnAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+    if (auto *FnIR = FnAST->codegen(*this, *mContext, *mBuilder, *mModule, *mFPM, mNamedValues)) {
       std::cerr << "Read function definition:\n";
       FnIR->print(llvm::errs());
       std::cerr << std::endl;
-      mJIT->addModule(move(mModule));
+      auto RT = mJIT->getMainJITDylib().createResourceTracker();
+      auto TSM = ThreadSafeModule(std::move(mModule), std::move(mContext));
+      ExitOnErr(mJIT->addModule(move(TSM), RT));
       InitializeModuleAndPassManager();
       // JIT all derivatives
       const string FunctionName = FnAST_backup->getName();
@@ -74,11 +79,12 @@ void Driver::HandleDefinition() {
         const string DerivativeName = "d" + FunctionName + "_d" + ArgName;
         if (auto FnDerivAST = FnAST_backup->Derivative(*this, ArgName, DerivativeName)) {
           auto FnDerivAST_backup = FnDerivAST->clone();
-          if (auto *FnDerivIR = FnDerivAST->codegen(*this, mContext, mBuilder, *mModule, *mFPM, mNamedValues)) {
+          if (auto *FnDerivIR = FnDerivAST->codegen(*this, *mContext, *mBuilder, *mModule, *mFPM, mNamedValues)) {
             std::cerr << "Derivative function " + DerivativeName + " IR:\n";
             FnDerivIR->print(llvm::errs());
             std::cerr << std::endl;
-            mJIT->addModule(move(mModule));
+            TSM = ThreadSafeModule(std::move(mModule), std::move(mContext));
+            ExitOnErr(mJIT->addModule(move(TSM), RT));
             InitializeModuleAndPassManager();
           }
           mDerivativeFunctions[DerivativeName] = std::move(FnDerivAST_backup);
@@ -92,7 +98,7 @@ void Driver::HandleDefinition() {
 
 void Driver::HandleExtern() {
   if (auto ProtoAST = mParser.ParseExtern()) {
-    if (auto *ProtoIR = ProtoAST->codegen(*this, mContext, mBuilder, *mModule, mNamedValues)) {
+    if (auto *ProtoIR = ProtoAST->codegen(*this, *mContext, *mBuilder, *mModule, mNamedValues)) {
       std::cerr << "Read extern:\n";
       ProtoIR->print(llvm::errs());
       std::cerr << std::endl;
@@ -113,7 +119,7 @@ void Driver::LoadLibraryFunctions() {
   using llvm::Function;
   for (auto it = ExternFunctionsMap.begin(); it != ExternFunctionsMap.end(); ++it) {
     auto externalFunction = make_unique<PrototypeAST>(it->first, it->second);
-    if (auto *ProtoIR = externalFunction->codegen(*this, mContext, mBuilder, *mModule, mNamedValues)) {
+    if (auto *ProtoIR = externalFunction->codegen(*this, *mContext, *mBuilder, *mModule, mNamedValues)) {
       std::cout << "Load function " << externalFunction->getName() << "(";
       const auto ArgumentNames = externalFunction->getArgumentNames();
       for (auto it_arg = ArgumentNames.begin(); it_arg != ArgumentNames.end(); ++it_arg) {
@@ -268,7 +274,10 @@ void Driver::traverseAST(const FunctionAST* Node) const {
 }
 
 void Driver::InitializeModuleAndPassManager() {
-  mModule = make_unique<Module>("calculator", mContext);
+  mContext = make_unique<LLVMContext>();
+  mModule = make_unique<Module>("calculator", *mContext);
+  mModule->setDataLayout(mJIT->getDataLayout());
+  mBuilder = make_unique<IRBuilder<>>(*mContext);
   mFPM = make_unique<llvm::legacy::FunctionPassManager>(mModule.get());
   
   // Promote allocas to registers.
@@ -294,7 +303,7 @@ Function* Driver::getFunction(const string& Name) {
   // prototype.
   auto FI = mFunctionProtos.find(Name);
   if (FI != mFunctionProtos.end()) {
-    return FI->second->codegen(*this, mContext, mBuilder, *mModule, mNamedValues);
+    return FI->second->codegen(*this, *mContext, *mBuilder, *mModule, mNamedValues);
   }
   // If no existing prototype exists, return null.
   return nullptr;
@@ -307,5 +316,5 @@ AllocaInst* Driver::CreateEntryBlockAlloca(Function* TheFunction,
   using llvm::IRBuilder;
   IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
                    TheFunction->getEntryBlock().begin());
-  return TmpB.CreateAlloca(llvm::Type::getDoubleTy(mContext), 0, VarName.c_str());
+  return TmpB.CreateAlloca(llvm::Type::getDoubleTy(*mContext), 0, VarName.c_str());
 }

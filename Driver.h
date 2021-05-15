@@ -6,6 +6,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Support/Error.h>
 #include <map>
 #include <string>
 #include <memory>
@@ -28,6 +29,10 @@ using llvm::Value;
 using llvm::legacy::FunctionPassManager;
 using llvm::orc::KaleidoscopeJIT;
 using llvm::AllocaInst;
+using llvm::orc::ThreadSafeModule;
+using llvm::ExitOnError;
+
+static ExitOnError ExitOnErr;
 
 class Driver {
 public:
@@ -49,8 +54,8 @@ public:
   map<string, unique_ptr<FunctionAST>> mDerivativeFunctions;
 private:
   Parser mParser;
-  LLVMContext mContext;
-  IRBuilder<> mBuilder;
+  unique_ptr<LLVMContext> mContext;
+  unique_ptr<IRBuilder<>> mBuilder;
   unique_ptr<Module> mModule;
   unique_ptr<FunctionPassManager> mFPM;
   unique_ptr<KaleidoscopeJIT> mJIT;

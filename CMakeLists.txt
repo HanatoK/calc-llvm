@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
+# set the project name and version
+project(MainProject VERSION 1.0)
+configure_file(Version.h.in Version.h)
 SET_PROPERTY(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 
 message(STATUS "Using CMAKE prefix path ${CMAKE_PREFIX_PATH}")
@@ -17,16 +20,12 @@ if (OPTIMIZE_DERIVATIVE)
   add_definitions(-DOPTIMIZE_DERIVATIVE)
 endif()
 
-# set the project name and version
-project(MainProject VERSION 1.0)
-configure_file(Version.h.in Version.h)
-
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # add the executable
-add_executable(main main.cpp Parser.cpp Lexer.cpp AbstractSyntaxTree.cpp Driver.cpp MainJIT.cpp Operation.cpp Library.cpp)
+add_executable(main main.cpp Parser.cpp Lexer.cpp AbstractSyntaxTree.cpp Driver.cpp Operation.cpp Library.cpp)
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use
