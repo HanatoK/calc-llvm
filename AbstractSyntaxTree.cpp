@@ -50,7 +50,7 @@ Value *VariableExprAST::codegen(Driver& TheDriver,
   Value *V = NamedValues[mName];
   if (!V)
     LogErrorV("Unknown variable name");
-  return Builder.CreateLoad(V, mName.c_str());
+  return V;
 }
 
 Value *BinaryExprAST::codegen(Driver& TheDriver,
